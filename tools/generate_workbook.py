@@ -106,6 +106,7 @@ statuses = ["Не начато", "В процессе", "Готово"]
 accounts = ["Наличные", "Карта Сбербанк", "Карта Тинькофф", "Вклад", "Кредит 1", "Кредит 2", "Инвестиционный счёт"]
 month_names = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
                "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+years_list = list(range(2023, 2033))
 
 cols_data = [income_cats, expense_cats, service_cats, task_cats, priorities, statuses]
 for ci, data in enumerate(cols_data):
@@ -154,6 +155,14 @@ for i, val in enumerate(month_names):
     ref.cell(row=3 + i, column=12, value=val).font = FONT_BODY
 ref.column_dimensions["L"].width = 12
 
+ref["M2"] = "Годы"
+ref["M2"].font = FONT_LBL
+ref["M2"].fill = fill(BLUE_LIGHT)
+ref["M2"].border = BORDER_ALL
+for i, val in enumerate(years_list):
+    ref.cell(row=3 + i, column=13, value=val).font = FONT_BODY
+ref.column_dimensions["M"].width = 10
+
 ref.sheet_view.showGridLines = False
 
 def named_list_range(col_letter, n):
@@ -168,6 +177,7 @@ RANGE_PRIORITY = named_list_range("E", len(priorities))
 RANGE_STATUS = named_list_range("F", len(statuses))
 RANGE_ACCOUNTS = named_list_range("K", len(accounts))
 RANGE_MONTHS = named_list_range("L", len(month_names))
+RANGE_YEARS = named_list_range("M", len(years_list))
 
 def add_checkbox_validation(ws, cell_range):
     dv = DataValidation(type="list", formula1='"TRUE,FALSE"', allow_blank=True)
@@ -641,6 +651,7 @@ bud["F3"].font = FONT_H2
 bud["F3"].fill = fill(YELLOW_LIGHT)
 bud["F3"].alignment = Alignment(horizontal="center")
 bud["F3"].border = BORDER_ALL
+add_list_validation(bud, "F3", RANGE_YEARS)
 
 MONTH_CELL, YEAR_CELL = "$C$3", "$F$3"
 MONTH_NUM = f"MATCH({MONTH_CELL},{RANGE_MONTHS},0)"
