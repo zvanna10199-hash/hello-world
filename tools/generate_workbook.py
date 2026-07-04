@@ -217,17 +217,26 @@ set_col_widths(hab, widths)
 style_title(hab, f"A1:{get_column_letter(LAST_DAY_COL)}1", "🌿  ТРЕКЕР ПРИВЫЧЕК", PURPLE)
 hab.row_dimensions[1].height = 28
 
-# Row2: month-start control
-hab["A2"] = "Дата начала месяца:"
+# Row2: month/year switcher
+hab["A2"] = "Месяц:"
 hab["A2"].font = FONT_LBL
-hab.merge_cells("A2:A2")
-hab["B2"] = datetime.date(2026, 7, 1)
-hab["B2"].number_format = "dd.mm.yyyy"
+hab["B2"] = "Июль"
 hab["B2"].font = Font(name="Roboto", size=10, bold=True, color=GRAY_TXT)
 hab["B2"].fill = fill(YELLOW_LIGHT)
 hab["B2"].alignment = Alignment(horizontal="center")
 hab["B2"].border = BORDER_ALL
-START_CELL = "$B$2"
+add_list_validation(hab, "B2", RANGE_MONTHS)
+
+hab["C2"] = "Год:"
+hab["C2"].font = FONT_LBL
+hab["D2"] = 2026
+hab["D2"].font = Font(name="Roboto", size=10, bold=True, color=GRAY_TXT)
+hab["D2"].fill = fill(YELLOW_LIGHT)
+hab["D2"].alignment = Alignment(horizontal="center")
+hab["D2"].border = BORDER_ALL
+add_list_validation(hab, "D2", RANGE_YEARS)
+
+START_CELL = f"DATE($D$2,MATCH($B$2,{RANGE_MONTHS},0),1)"
 
 # Row4-5: month/date pink block (merged 2 rows)
 hab.merge_cells("B4:B5")
@@ -267,8 +276,8 @@ for col in range(FIRST_DAY_COL, LAST_DAY_COL + 1):
     dn.alignment = Alignment(horizontal="center")
     dn.border = BORDER_ALL
 
-# Habit rows 7-21 (15 rows)
-HAB_FIRST_ROW, HAB_LAST_ROW = 7, 21
+# Habit rows 7-30 (24 rows: 8 examples + 16 blank)
+HAB_FIRST_ROW, HAB_LAST_ROW = 7, 30
 example_habits = [
     "💧 2 литра воды", "🏃 Спортзал в 19:00", "📖 Чтение 30 мин", "📓 Ведение дневника",
     "💼 Работа — 5 часов", "💪 Подработка — 2 часа", "🧘 Растяжка 15 мин", "🙏 Практика благодарности",
@@ -324,14 +333,14 @@ hab.conditional_formatting.add(
 
 hab.freeze_panes = f"C{HAB_FIRST_ROW}"
 
-# Weekly habits table
+# Weekly habits table (10 rows)
 WEEKLY_HDR_ROW = ROW_PCT + 2
 box_header(hab, f"B{WEEKLY_HDR_ROW}:B{WEEKLY_HDR_ROW}", "ЕЖЕНЕДЕЛЬНЫЕ ПРИВЫЧКИ", BLUE)
 for i, wk in enumerate(["НЕДЕЛЯ 1", "НЕДЕЛЯ 2", "НЕДЕЛЯ 3", "НЕДЕЛЯ 4", "НЕДЕЛЯ 5"]):
     box_header(hab, f"{get_column_letter(3+i)}{WEEKLY_HDR_ROW}:{get_column_letter(3+i)}{WEEKLY_HDR_ROW}", wk, BLUE_LIGHT)
 
 weekly_examples = ["🏋 Спортзал 3 раза в неделю", "💰 Анализ расходов"]
-WEEKLY_FIRST, WEEKLY_LAST = WEEKLY_HDR_ROW + 1, WEEKLY_HDR_ROW + 5
+WEEKLY_FIRST, WEEKLY_LAST = WEEKLY_HDR_ROW + 1, WEEKLY_HDR_ROW + 10
 for i, r in enumerate(range(WEEKLY_FIRST, WEEKLY_LAST + 1)):
     nc = hab.cell(row=r, column=2)
     if i < len(weekly_examples):
@@ -342,28 +351,34 @@ for i, r in enumerate(range(WEEKLY_FIRST, WEEKLY_LAST + 1)):
         cc = hab.cell(row=r, column=col, value=False)
         cc.alignment = Alignment(horizontal="center")
         cc.border = BORDER_ALL
-    add_checkbox_validation(hab, f"C{r}:G{r}")
-    hab.conditional_formatting.add(f"C{r}:G{r}", FormulaRule(formula=[f"C{r}=TRUE"], fill=fill(SAGE)))
+add_checkbox_validation(hab, f"C{WEEKLY_FIRST}:G{WEEKLY_LAST}")
+hab.conditional_formatting.add(
+    f"C{WEEKLY_FIRST}:G{WEEKLY_LAST}",
+    FormulaRule(formula=[f"C{WEEKLY_FIRST}=TRUE"], fill=fill(SAGE))
+)
 
-# Monthly habits table (to the right)
-box_header(hab, f"I{WEEKLY_HDR_ROW}:J{WEEKLY_HDR_ROW}", "ЕЖЕМЕСЯЧНЫЕ ПРИВЫЧКИ", PINK)
-hab.column_dimensions["I"].width = 26
-hab.column_dimensions["J"].width = 8
+# Monthly habits table — placed BELOW the weekly table, not beside it (10 rows)
+MONTHLY_HDR_ROW = WEEKLY_LAST + 2
+box_header(hab, f"B{MONTHLY_HDR_ROW}:C{MONTHLY_HDR_ROW}", "ЕЖЕМЕСЯЧНЫЕ ПРИВЫЧКИ", PINK)
 monthly_examples = ["📏 Сделать замеры до/после"]
-for i, r in enumerate(range(WEEKLY_FIRST, WEEKLY_FIRST + 2)):
-    nc = hab.cell(row=r, column=9)
+MONTHLY_FIRST, MONTHLY_LAST = MONTHLY_HDR_ROW + 1, MONTHLY_HDR_ROW + 10
+for i, r in enumerate(range(MONTHLY_FIRST, MONTHLY_LAST + 1)):
+    nc = hab.cell(row=r, column=2)
     if i < len(monthly_examples):
         nc.value = monthly_examples[i]
     nc.font = FONT_BODY
     nc.border = BORDER_ALL
-    cc = hab.cell(row=r, column=10, value=False)
+    cc = hab.cell(row=r, column=3, value=False)
     cc.alignment = Alignment(horizontal="center")
     cc.border = BORDER_ALL
-    add_checkbox_validation(hab, f"J{r}:J{r}")
-    hab.conditional_formatting.add(f"J{r}:J{r}", FormulaRule(formula=[f"J{r}=TRUE"], fill=fill(PINK)))
+add_checkbox_validation(hab, f"C{MONTHLY_FIRST}:C{MONTHLY_LAST}")
+hab.conditional_formatting.add(
+    f"C{MONTHLY_FIRST}:C{MONTHLY_LAST}",
+    FormulaRule(formula=[f"C{MONTHLY_FIRST}=TRUE"], fill=fill(PINK))
+)
 
 # Notes section
-NOTES_HDR_ROW = WEEKLY_LAST + 2
+NOTES_HDR_ROW = MONTHLY_LAST + 2
 box_header(hab, f"B{NOTES_HDR_ROW}:P{NOTES_HDR_ROW}", "ЗАМЕТКИ", BLUE)
 for r in range(NOTES_HDR_ROW + 1, NOTES_HDR_ROW + 7):
     for col in range(2, 17):
