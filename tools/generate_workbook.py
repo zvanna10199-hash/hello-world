@@ -87,8 +87,8 @@ set_col_widths(ref, {"A": 22, "B": 22, "C": 24, "D": 16, "E": 18, "F": 14, "G": 
 style_title(ref, "A1:H1", "СПРАВОЧНИК КАТЕГОРИЙ И СПИСКОВ", PURPLE)
 ref.row_dimensions[1].height = 26
 
-headers = ["Категории доходов", "Категории расходов", "Служебные (долг/вклад)",
-           "Тип транзакции", "Категории задач", "Приоритет", "Статус задачи"]
+headers = ["Категории доходов", "Категории расходов", "Служебные (переводы/долг/инвест.)",
+           "Категории задач", "Приоритет", "Статус задачи"]
 for i, h in enumerate(headers):
     c = ref.cell(row=2, column=1 + i, value=h)
     c.font = FONT_LBL
@@ -98,13 +98,16 @@ for i, h in enumerate(headers):
 
 income_cats = ["Зарплата", "Заказы", "Подарок"]
 expense_cats = ["Аренда", "Продукты", "Обучение", "Кредит", "Субподряд", "Ипотека", "Подарок", "Аутсорс"]
-service_cats = ["Взял в долг", "Вернул долг", "Дал в долг", "Вернули долг", "Пополнение вклада", "Снятие со вклада"]
-txn_types = ["Доход", "Расход", "Накопление", "Долг"]
+service_cats = ["Взял в долг", "Вернул долг", "Дал в долг", "Вернули долг",
+                "Пополнение вклада", "Снятие со вклада", "Инвестиции: пополнение", "Инвестиции: вывод"]
 task_cats = ["Работа", "Личное", "Другое"]
 priorities = ["Срочно", "Высокий", "Средний", "Низкий"]
 statuses = ["Не начато", "В процессе", "Готово"]
+accounts = ["Наличные", "Карта Сбербанк", "Карта Тинькофф", "Вклад", "Кредит 1", "Кредит 2", "Инвестиционный счёт"]
+month_names = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+               "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
 
-cols_data = [income_cats, expense_cats, service_cats, txn_types, task_cats, priorities, statuses]
+cols_data = [income_cats, expense_cats, service_cats, task_cats, priorities, statuses]
 for ci, data in enumerate(cols_data):
     for ri, val in enumerate(data):
         cell = ref.cell(row=3 + ri, column=1 + ci, value=val)
@@ -114,9 +117,9 @@ for ci, data in enumerate(cols_data):
 note_row = 3 + max(len(c) for c in cols_data) + 1
 ref.merge_cells(start_row=note_row, start_column=3, end_row=note_row + 3, end_column=3)
 note_cell = ref.cell(row=note_row, column=3)
-note_cell.value = ("⚠ Эти категории используются в формулах расчёта долгов и накоплений.\n"
-                    "Не изменяйте и не удаляйте их, если хотите корректный учёт.\n\n"
-                    "Если вы не планируете отслеживать долги и накопления — эти категории можно удалить.")
+note_cell.value = ("⚠ Эти категории — служебные (переводы между своими счетами, долги, инвестиции).\n"
+                    "Они не считаются доходом/расходом в сводке за месяц, но участвуют в остатках по счетам.\n"
+                    "Не изменяйте и не удаляйте их, если хотите корректный учёт.")
 note_cell.font = FONT_NOTE
 note_cell.fill = fill(YELLOW_LIGHT)
 note_cell.alignment = Alignment(wrap_text=True, vertical="top")
@@ -129,6 +132,28 @@ for i, val in enumerate(all_cats):
     ref.cell(row=3 + i, column=10, value=val).font = FONT_BODY
 ref.column_dimensions["J"].width = 26
 
+ref["K2"] = "Счета / способы оплаты"
+ref["K2"].font = FONT_LBL
+ref["K2"].fill = fill(BLUE_LIGHT)
+ref["K2"].border = BORDER_ALL
+for i, val in enumerate(accounts):
+    ref.cell(row=3 + i, column=11, value=val).font = FONT_BODY
+ref.column_dimensions["K"].width = 20
+ref.merge_cells(start_row=3 + len(accounts) + 1, start_column=11, end_row=3 + len(accounts) + 3, end_column=11)
+acc_note = ref.cell(row=3 + len(accounts) + 1, column=11)
+acc_note.value = "✏ Добавьте сюда свои карты, наличные, вклады, кредиты или инвестсчета — они появятся в выпадающем списке «Счёт» в Бюджете."
+acc_note.font = FONT_NOTE
+acc_note.fill = fill(YELLOW_LIGHT)
+acc_note.alignment = Alignment(wrap_text=True, vertical="top")
+
+ref["L2"] = "Месяцы"
+ref["L2"].font = FONT_LBL
+ref["L2"].fill = fill(BLUE_LIGHT)
+ref["L2"].border = BORDER_ALL
+for i, val in enumerate(month_names):
+    ref.cell(row=3 + i, column=12, value=val).font = FONT_BODY
+ref.column_dimensions["L"].width = 12
+
 ref.sheet_view.showGridLines = False
 
 def named_list_range(col_letter, n):
@@ -136,11 +161,13 @@ def named_list_range(col_letter, n):
 
 RANGE_INCOME = named_list_range("A", len(income_cats))
 RANGE_EXPENSE = named_list_range("B", len(expense_cats))
+RANGE_SERVICE = named_list_range("C", len(service_cats))
 RANGE_ALLCATS = named_list_range("J", len(all_cats))
-RANGE_TXNTYPE = named_list_range("D", len(txn_types))
-RANGE_TASKCAT = named_list_range("E", len(task_cats))
-RANGE_PRIORITY = named_list_range("F", len(priorities))
-RANGE_STATUS = named_list_range("G", len(statuses))
+RANGE_TASKCAT = named_list_range("D", len(task_cats))
+RANGE_PRIORITY = named_list_range("E", len(priorities))
+RANGE_STATUS = named_list_range("F", len(statuses))
+RANGE_ACCOUNTS = named_list_range("K", len(accounts))
+RANGE_MONTHS = named_list_range("L", len(month_names))
 
 def add_checkbox_validation(ws, cell_range):
     dv = DataValidation(type="list", formula1='"TRUE,FALSE"', allow_blank=True)
@@ -150,6 +177,12 @@ def add_checkbox_validation(ws, cell_range):
 
 def add_list_validation(ws, cell_range, source_range):
     dv = DataValidation(type="list", formula1=f"={source_range}", allow_blank=True)
+    ws.add_data_validation(dv)
+    dv.add(cell_range)
+    return dv
+
+def add_list_validation_literal(ws, cell_range, csv_values):
+    dv = DataValidation(type="list", formula1=f'"{csv_values}"', allow_blank=True)
     ws.add_data_validation(dv)
     dv.add(cell_range)
     return dv
@@ -506,7 +539,9 @@ pie.set_categories(cats)
 pie.height, pie.width = 7, 9
 pie.dataLabels = DataLabelList()
 pie.dataLabels.showPercent = True
-tsk.add_chart(pie, f"I{FILTER_ROW+1}")
+# charts anchored in a dedicated column, clear of every table on this sheet
+CHART_COL = "R"
+tsk.add_chart(pie, f"{CHART_COL}3")
 
 bar = BarChart()
 bar.type = "col"
@@ -517,7 +552,7 @@ bar.add_data(bdata, titles_from_data=False)
 bar.set_categories(bcats)
 bar.height, bar.width = 7, 9
 bar.legend = None
-tsk.add_chart(bar, f"N{FILTER_ROW+1}")
+tsk.add_chart(bar, f"{CHART_COL}20")
 
 # ---- FILTER tables by priority (2x2 grid) ----
 FT_ROW1 = FILTER_ROW + 17
@@ -583,212 +618,107 @@ bud = wb.create_sheet("Бюджет")
 bud.sheet_properties.tabColor = SAGE_DK
 bud.sheet_view.showGridLines = False
 
-set_col_widths(bud, {"A": 3, "B": 20, "C": 12, "D": 16, "E": 20, "F": 12, "G": 3,
-                      "H": 16, "I": 12, "J": 8, "K": 12, "L": 16, "M": 12, "N": 12,
-                      "O": 12, "P": 10, "Q": 10, "R": 10, "S": 3})
+set_col_widths(bud, {"A": 3, "B": 18, "C": 16, "D": 12, "E": 20, "F": 12, "G": 22, "H": 12,
+                      "I": 3, "J": 3, "K": 3, "L": 12, "M": 12, "N": 12, "O": 4, "P": 4})
 
-style_title(bud, "A1:R1", "💰  БЮДЖЕТ: ДОХОДЫ И РАСХОДЫ", SAGE)
+style_title(bud, "A1:H1", "💰  БЮДЖЕТ: ДОХОДЫ И РАСХОДЫ", SAGE)
 bud.row_dimensions[1].height = 28
 
-box_header(bud, "B3:C3", "ДОЛГИ", BLUE)
-box_header(bud, "E3:F3", "ВКЛАД", YELLOW)
-box_header(bud, "H3:I3", "ДОХОД", SAGE)
-box_header(bud, "K3:L3", "РАСХОД", PINK)
-box_header(bud, "N3:O3", "ДОХОД − РАСХОД", PURPLE)
+# ---- month/year switcher ----
+bud["B3"] = "Месяц:"
+bud["B3"].font = FONT_LBL
+bud["C3"] = "Январь"
+bud["C3"].font = FONT_H2
+bud["C3"].fill = fill(YELLOW_LIGHT)
+bud["C3"].alignment = Alignment(horizontal="center")
+bud["C3"].border = BORDER_ALL
+add_list_validation(bud, "C3", RANGE_MONTHS)
 
-OPS_FIRST, OPS_LAST = 60, 259
-D_RANGE = f"$B${OPS_FIRST}:$B${OPS_LAST}"   # Дата
-T_RANGE = f"$C${OPS_FIRST}:$C${OPS_LAST}"   # Транзакция
-K_RANGE = f"$D${OPS_FIRST}:$D${OPS_LAST}"   # Категория
-S_RANGE = f"$E${OPS_FIRST}:$E${OPS_LAST}"   # Сумма
+bud["E3"] = "Год:"
+bud["E3"].font = FONT_LBL
+bud["F3"] = 2026
+bud["F3"].font = FONT_H2
+bud["F3"].fill = fill(YELLOW_LIGHT)
+bud["F3"].alignment = Alignment(horizontal="center")
+bud["F3"].border = BORDER_ALL
 
-def sumifs_txn(txn, cat=None):
-    if cat:
-        return f'SUMIFS({S_RANGE},{T_RANGE},"{txn}",{K_RANGE},"{cat}")'
-    return f'SUMIFS({S_RANGE},{T_RANGE},"{txn}")'
+MONTH_CELL, YEAR_CELL = "$C$3", "$F$3"
+MONTH_NUM = f"MATCH({MONTH_CELL},{RANGE_MONTHS},0)"
 
-bud["B4"] = "Мой долг (нетто)"
-bud["C4"] = f'=MAX({sumifs_txn("Долг","Взял в долг")}-{sumifs_txn("Долг","Вернул долг")},0)'
-bud["B5"] = "Мне должны (нетто)"
-bud["C5"] = f'=MAX({sumifs_txn("Долг","Дал в долг")}-{sumifs_txn("Долг","Вернули долг")},0)'
-bud.merge_cells("B6:C6")
-bud["B6"] = '=IF($C$4>$C$5,"🔴 Ты должен больше, чем тебе должны","🟢 Тебе должны больше, чем ты")'
+OPS_FIRST, OPS_LAST = 27, 226
+B_RANGE = f"$B${OPS_FIRST}:$B${OPS_LAST}"   # Дата
+C_RANGE = f"$C${OPS_FIRST}:$C${OPS_LAST}"   # Счёт
+D_RANGE = f"$D${OPS_FIRST}:$D${OPS_LAST}"   # Тип
+E_RANGE = f"$E${OPS_FIRST}:$E${OPS_LAST}"   # Категория
+F_RANGE = f"$F${OPS_FIRST}:$F${OPS_LAST}"   # Сумма
 
-bud["E4"] = "Пополнение вклада"
-bud["F4"] = f'={sumifs_txn("Накопление","Пополнение вклада")}'
-bud["E5"] = "Снятие со вклада"
-bud["F5"] = f'={sumifs_txn("Накопление","Снятие со вклада")}'
-bud["E6"] = "На вкладе"
-bud["F6"] = "=F4-F5"
-bud.merge_cells("E7:F7")
-bud["E7"] = '=IF($F$6>=0,"🟡 Положительный баланс накоплений","🔴 Снятий больше, чем пополнений")'
+def month_sum(txn, exclude_service=False):
+    parts = [f'({D_RANGE}="{txn}")', f'(YEAR({B_RANGE}+0)={YEAR_CELL})', f'(MONTH({B_RANGE}+0)={MONTH_NUM})']
+    if exclude_service:
+        parts.append(f'(COUNTIF({RANGE_SERVICE},{E_RANGE})=0)')
+    return f'=SUMPRODUCT({"*".join(parts)}*{F_RANGE})'
 
-for row in (4, 5):
-    for col in "BE":
-        bud[f"{col}{row}"].font = FONT_BODY
-        bud[f"{col}{row}"].border = BORDER_ALL
-    for col in "CF":
-        bud[f"{col}{row}"].font = FONT_H2
-        bud[f"{col}{row}"].number_format = '#,##0" ₽"'
-        bud[f"{col}{row}"].alignment = Alignment(horizontal="center")
-        bud[f"{col}{row}"].border = BORDER_ALL
-bud["E6"].font = FONT_LBL
-bud["F6"].font = FONT_H2
+# ---- KPI: доход / расход / баланс за выбранный месяц ----
+box_header(bud, "B5:C5", "ДОХОД (месяц)", SAGE)
+box_header(bud, "D5:E5", "РАСХОД (месяц)", PINK)
+box_header(bud, "F5:H5", "БАЛАНС (месяц)", PURPLE)
+
+bud.merge_cells("B6:C8")
+bud["B6"] = month_sum("Доход", exclude_service=True)
+bud["B6"].number_format = '#,##0" ₽"'
+bud["B6"].font = FONT_BIG
+bud["B6"].alignment = Alignment(horizontal="center", vertical="center")
+
+bud.merge_cells("D6:E8")
+bud["D6"] = month_sum("Расход", exclude_service=True)
+bud["D6"].number_format = '#,##0" ₽"'
+bud["D6"].font = FONT_BIG
+bud["D6"].alignment = Alignment(horizontal="center", vertical="center")
+
+bud.merge_cells("F6:H8")
+bud["F6"] = "=B6-D6"
 bud["F6"].number_format = '#,##0" ₽"'
-bud["F6"].fill = fill(YELLOW_DK)
-bud["B6"].font = FONT_NOTE
-bud["E7"].font = FONT_NOTE
+bud["F6"].font = FONT_BIG
+bud["F6"].alignment = Alignment(horizontal="center", vertical="center")
 
-bud.merge_cells("H4:I6")
-bud["H4"] = f'={sumifs_txn("Доход")}'
-bud["H4"].number_format = '#,##0" ₽"'
-bud["H4"].font = FONT_BIG
-bud["H4"].alignment = Alignment(horizontal="center", vertical="center")
-bud.merge_cells("H7:I7")
-bud["H7"] = f'="Операций: "&COUNTIF({T_RANGE},"Доход")'
-bud["H7"].font = FONT_NOTE
-bud["H7"].alignment = Alignment(horizontal="center")
-
-bud.merge_cells("K4:L6")
-bud["K4"] = f'={sumifs_txn("Расход")}'
-bud["K4"].number_format = '#,##0" ₽"'
-bud["K4"].font = FONT_BIG
-bud["K4"].alignment = Alignment(horizontal="center", vertical="center")
-bud.merge_cells("K7:L7")
-bud["K7"] = f'="Операций: "&COUNTIF({T_RANGE},"Расход")'
-bud["K7"].font = FONT_NOTE
-bud["K7"].alignment = Alignment(horizontal="center")
-
-bud.merge_cells("N4:O6")
-bud["N4"] = "=H4-K4"
-bud["N4"].number_format = '#,##0" ₽"'
-bud["N4"].font = FONT_BIG
-bud["N4"].alignment = Alignment(horizontal="center", vertical="center")
-bud.merge_cells("N7:O7")
-bud["N7"] = '=IF($N$4>=0,"✅ Доходы превышают расходы","⚠ Расходы превышают доходы")'
-bud["N7"].font = FONT_NOTE
-bud["N7"].alignment = Alignment(horizontal="center")
-
-for rng in ("H4:I6", "H7:I7", "K4:L6", "K7:L7", "N4:O6", "N7:O7"):
+for rng in ("B6:C8", "D6:E8", "F6:H8"):
     for row in bud[rng]:
         for c in row:
             c.border = BORDER_ALL
 
-# ratio helper (for pie chart)
-bud["Q3"] = "Соотношение"
-bud["Q3"].font = FONT_LBL
-bud["Q4"], bud["R4"] = "Доход", "=H4"
-bud["Q5"], bud["R5"] = "Расход", "=K4"
+# ---- остаток по счетам (не зависит от месяца — текущее состояние) ----
+box_header(bud, "B11:C11", "ОСТАТОК ПО СЧЕТАМ", BLUE)
+bud["B12"] = "Счёт"
+bud["C12"] = "Остаток"
+for col in "BC":
+    bud[f"{col}12"].font = FONT_LBL
+    bud[f"{col}12"].fill = fill(BLUE_LIGHT)
+    bud[f"{col}12"].alignment = Alignment(horizontal="center")
+    bud[f"{col}12"].border = BORDER_ALL
 
-# category / dynamics tables
-box_header(bud, "D26:F26", "ДОХОДЫ", SAGE)
-box_header(bud, "H26:J26", "РАСХОДЫ", PINK)
-box_header(bud, "L26:N26", "ДИНАМИКА ЗА ГОД", BLUE)
-bud["O25"] = "Год:"
-bud["O25"].font = FONT_LBL
-bud["P25"] = 2026
-bud["P25"].font = FONT_H2
-bud["P25"].fill = fill(YELLOW_LIGHT)
-bud["P25"].alignment = Alignment(horizontal="center")
-bud["P25"].border = BORDER_ALL
-YEAR_CELL = "$P$25"
-
-for col, lbl in zip("DEF", ["Категория", "Сумма", "%"]):
-    c = bud[f"{col}27"]
-    c.value = lbl
-    c.font = FONT_LBL
-    c.fill = fill(SAGE_LIGHT)
-    c.alignment = Alignment(horizontal="center")
-    c.border = BORDER_ALL
-for col, lbl in zip("HIJ", ["Категория", "Сумма", "%"]):
-    c = bud[f"{col}27"]
-    c.value = lbl
-    c.font = FONT_LBL
-    c.fill = fill(PINK_LIGHT)
-    c.alignment = Alignment(horizontal="center")
-    c.border = BORDER_ALL
-for col, lbl in zip("LMN", ["Месяц", "Доход", "Расход"]):
-    c = bud[f"{col}27"]
-    c.value = lbl
-    c.font = FONT_LBL
-    c.fill = fill(BLUE_LIGHT)
-    c.alignment = Alignment(horizontal="center")
-    c.border = BORDER_ALL
-
-for i, cat in enumerate(income_cats):
-    r = 28 + i
-    bud[f"D{r}"] = cat
-    bud[f"E{r}"] = f'=SUMIFS({S_RANGE},{T_RANGE},"Доход",{K_RANGE},"{cat}")'
-    bud[f"F{r}"] = f'=IFERROR(E{r}/$H$4,0)'
-    bud[f"F{r}"].number_format = "0%"
-    for col in "DEF":
-        bud[f"{col}{r}"].font = FONT_BODY
+ACC_FIRST = 13
+N_ACC_SLOTS = 10
+for i in range(N_ACC_SLOTS):
+    r = ACC_FIRST + i
+    acc_ref = f"Справочник!$K${3+i}"
+    bud[f"B{r}"] = f'=IFERROR(IF({acc_ref}="","",{acc_ref}),"")'
+    bud[f"C{r}"] = (f'=IF(B{r}="","",SUMIFS({F_RANGE},{C_RANGE},B{r},{D_RANGE},"Доход")'
+                     f'-SUMIFS({F_RANGE},{C_RANGE},B{r},{D_RANGE},"Расход"))')
+    bud[f"B{r}"].font = FONT_BODY
+    bud[f"C{r}"].font = FONT_BODY
+    bud[f"C{r}"].number_format = '#,##0" ₽";[RED]-#,##0" ₽"'
+    bud[f"C{r}"].alignment = Alignment(horizontal="center")
+    for col in "BC":
         bud[f"{col}{r}"].border = BORDER_ALL
+bud.conditional_formatting.add(
+    f"C{ACC_FIRST}:C{ACC_FIRST+N_ACC_SLOTS-1}",
+    CellIsRule(operator="lessThan", formula=["0"], fill=fill(PINK_LIGHT))
+)
 
-for i, cat in enumerate(expense_cats):
-    r = 28 + i
-    bud[f"H{r}"] = cat
-    bud[f"I{r}"] = f'=SUMIFS({S_RANGE},{T_RANGE},"Расход",{K_RANGE},"{cat}")'
-    bud[f"J{r}"] = f'=IFERROR(I{r}/$K$4,0)'
-    bud[f"J{r}"].number_format = "0%"
-    for col in "HIJ":
-        bud[f"{col}{r}"].font = FONT_BODY
-        bud[f"{col}{r}"].border = BORDER_ALL
-
-for m in range(1, 13):
-    r = 27 + m
-    bud[f"L{r}"] = f'=TEXT(DATE({YEAR_CELL},{m},1),"mmm yy")'
-    bud[f"M{r}"] = (f'=SUMPRODUCT(({T_RANGE}="Доход")*(YEAR({D_RANGE}+0)={YEAR_CELL})'
-                     f'*(MONTH({D_RANGE}+0)={m})*{S_RANGE})')
-    bud[f"N{r}"] = (f'=SUMPRODUCT(({T_RANGE}="Расход")*(YEAR({D_RANGE}+0)={YEAR_CELL})'
-                     f'*(MONTH({D_RANGE}+0)={m})*{S_RANGE})')
-    for col in "LMN":
-        bud[f"{col}{r}"].font = FONT_BODY
-        bud[f"{col}{r}"].border = BORDER_ALL
-
-# ---- charts ----
-pie_income = PieChart()
-pie_income.title = "Категории доходов"
-pie_income.add_data(Reference(bud, min_col=5, min_row=28, max_row=27 + len(income_cats)))
-pie_income.set_categories(Reference(bud, min_col=4, min_row=28, max_row=27 + len(income_cats)))
-pie_income.height, pie_income.width = 8, 10
-bud.add_chart(pie_income, "B9")
-
-pie_expense = PieChart()
-pie_expense.title = "Категории расходов"
-pie_expense.add_data(Reference(bud, min_col=9, min_row=28, max_row=27 + len(expense_cats)))
-pie_expense.set_categories(Reference(bud, min_col=8, min_row=28, max_row=27 + len(expense_cats)))
-pie_expense.height, pie_expense.width = 8, 10
-bud.add_chart(pie_expense, "J9")
-
-line = LineChart()
-line.title = "Динамика: доход / расход"
-line.add_data(Reference(bud, min_col=13, min_row=27, max_row=39), titles_from_data=True)
-line.add_data(Reference(bud, min_col=14, min_row=27, max_row=39), titles_from_data=True)
-line.set_categories(Reference(bud, min_col=12, min_row=28, max_row=39))
-line.height, line.width = 8, 12
-bud.add_chart(line, "R9")
-
-pie_ratio = PieChart()
-pie_ratio.title = "Соотношение"
-pie_ratio.add_data(Reference(bud, min_col=18, min_row=4, max_row=5))
-pie_ratio.set_categories(Reference(bud, min_col=17, min_row=4, max_row=5))
-pie_ratio.height, pie_ratio.width = 8, 10
-bud.add_chart(pie_ratio, "B41")
-
-bar_month = BarChart()
-bar_month.type = "bar"
-bar_month.title = "По месяцам"
-bar_month.add_data(Reference(bud, min_col=13, min_row=27, max_row=39), titles_from_data=True)
-bar_month.add_data(Reference(bud, min_col=14, min_row=27, max_row=39), titles_from_data=True)
-bar_month.set_categories(Reference(bud, min_col=12, min_row=28, max_row=39))
-bar_month.height, bar_month.width = 10, 14
-bud.add_chart(bar_month, "J41")
-
-# ---- Все операции ----
-box_header(bud, f"B58:F58", "ВСЕ ОПЕРАЦИИ", SAGE)
-for col, lbl in zip("BCDEF", ["Дата", "Транзакция", "Категория", "Сумма", "Описание"]):
-    c = bud[f"{col}59"]
+# ---- журнал операций (основная таблица для ввода) ----
+box_header(bud, "B25:H25", "✏️  ЖУРНАЛ ОПЕРАЦИЙ — вносите доходы и расходы сюда", SAGE)
+for col, lbl in zip("BCDEFGH", ["Дата", "Счёт", "Тип", "Категория", "Сумма", "Описание", "Остаток"]):
+    c = bud[f"{col}26"]
     c.value = lbl
     c.font = FONT_LBL
     c.fill = fill(SAGE_LIGHT)
@@ -796,48 +726,150 @@ for col, lbl in zip("BCDEF", ["Дата", "Транзакция", "Катего�
     c.border = BORDER_ALL
 
 example_ops = [
-    (datetime.date(2026, 1, 5), "Доход", "Зарплата", 75000, ""),
-    (datetime.date(2026, 1, 6), "Расход", "Аренда", 28000, ""),
-    (datetime.date(2026, 1, 8), "Расход", "Продукты", 7500, ""),
-    (datetime.date(2026, 1, 10), "Накопление", "Пополнение вклада", 15000, ""),
-    (datetime.date(2026, 1, 15), "Доход", "Заказы", 20000, "у друга"),
-    (datetime.date(2026, 1, 18), "Расход", "Кредит", 9000, ""),
-    (datetime.date(2026, 1, 20), "Долг", "Взял в долг", 10000, ""),
-    (datetime.date(2026, 1, 25), "Расход", "Обучение", 10000, ""),
-    (datetime.date(2026, 2, 2), "Доход", "Зарплата", 75000, ""),
-    (datetime.date(2026, 2, 3), "Расход", "Аренда", 28000, ""),
-    (datetime.date(2026, 2, 5), "Расход", "Продукты", 8000, ""),
-    (datetime.date(2026, 2, 8), "Накопление", "Пополнение вклада", 20000, ""),
-    (datetime.date(2026, 2, 12), "Доход", "Заказы", 30000, ""),
-    (datetime.date(2026, 2, 15), "Долг", "Вернул долг", 5000, ""),
-    (datetime.date(2026, 2, 18), "Расход", "Ипотека", 18000, ""),
+    (datetime.date(2026, 1, 5), "Карта Сбербанк", "Доход", "Зарплата", 75000, ""),
+    (datetime.date(2026, 1, 6), "Карта Сбербанк", "Расход", "Аренда", 28000, ""),
+    (datetime.date(2026, 1, 8), "Наличные", "Расход", "Продукты", 7500, ""),
+    (datetime.date(2026, 1, 10), "Карта Сбербанк", "Расход", "Пополнение вклада", 15000, "перевод на вклад"),
+    (datetime.date(2026, 1, 10), "Вклад", "Доход", "Пополнение вклада", 15000, ""),
+    (datetime.date(2026, 1, 15), "Карта Тинькофф", "Доход", "Заказы", 20000, "у друга"),
+    (datetime.date(2026, 1, 18), "Карта Сбербанк", "Расход", "Кредит", 9000, ""),
+    (datetime.date(2026, 1, 20), "Наличные", "Доход", "Взял в долг", 10000, ""),
+    (datetime.date(2026, 1, 25), "Карта Сбербанк", "Расход", "Обучение", 10000, ""),
+    (datetime.date(2026, 2, 2), "Карта Сбербанк", "Доход", "Зарплата", 75000, ""),
+    (datetime.date(2026, 2, 3), "Карта Сбербанк", "Расход", "Аренда", 28000, ""),
+    (datetime.date(2026, 2, 5), "Наличные", "Расход", "Продукты", 8000, ""),
+    (datetime.date(2026, 2, 8), "Карта Сбербанк", "Расход", "Пополнение вклада", 20000, ""),
+    (datetime.date(2026, 2, 8), "Вклад", "Доход", "Пополнение вклада", 20000, ""),
+    (datetime.date(2026, 2, 12), "Карта Тинькофф", "Доход", "Заказы", 30000, ""),
+    (datetime.date(2026, 2, 15), "Наличные", "Расход", "Вернул долг", 5000, ""),
+    (datetime.date(2026, 2, 18), "Карта Сбербанк", "Расход", "Ипотека", 18000, ""),
 ]
 
 for i, r in enumerate(range(OPS_FIRST, OPS_LAST + 1)):
     if i < len(example_ops):
-        date_v, txn_v, cat_v, sum_v, desc_v = example_ops[i]
+        date_v, acc_v, txn_v, cat_v, sum_v, desc_v = example_ops[i]
         bud[f"B{r}"] = date_v
         bud[f"B{r}"].number_format = "dd.mm.yyyy"
-        bud[f"C{r}"] = txn_v
-        bud[f"D{r}"] = cat_v
-        bud[f"E{r}"] = sum_v
-        bud[f"F{r}"] = desc_v
-    for col in "BCDEF":
+        bud[f"C{r}"] = acc_v
+        bud[f"D{r}"] = txn_v
+        bud[f"E{r}"] = cat_v
+        bud[f"F{r}"] = sum_v
+        bud[f"G{r}"] = desc_v
+    bud[f"H{r}"] = (f'=IF(C{r}="","",SUMPRODUCT(($C${OPS_FIRST}:C{r}=C{r})'
+                     f'*(2*($D${OPS_FIRST}:D{r}="Доход")-1)*$F${OPS_FIRST}:F{r}))')
+    for col in "BCDEFGH":
         bud[f"{col}{r}"].font = FONT_BODY
         bud[f"{col}{r}"].border = BORDER_ALL
-    bud[f"E{r}"].number_format = '#,##0" ₽"'
+    bud[f"F{r}"].number_format = '#,##0" ₽"'
+    bud[f"H{r}"].number_format = '#,##0" ₽";[RED]-#,##0" ₽"'
 
-add_list_validation(bud, f"C{OPS_FIRST}:C{OPS_LAST}", RANGE_TXNTYPE)
-add_list_validation(bud, f"D{OPS_FIRST}:D{OPS_LAST}", RANGE_ALLCATS)
+add_list_validation(bud, f"C{OPS_FIRST}:C{OPS_LAST}", RANGE_ACCOUNTS)
+add_list_validation_literal(bud, f"D{OPS_FIRST}:D{OPS_LAST}", "Доход,Расход")
+add_list_validation(bud, f"E{OPS_FIRST}:E{OPS_LAST}", RANGE_ALLCATS)
 
-txn_colors = {"Доход": SAGE, "Расход": PINK, "Накопление": YELLOW, "Долг": PURPLE}
+txn_colors = {"Доход": SAGE, "Расход": PINK}
 for txn, color in txn_colors.items():
     bud.conditional_formatting.add(
-        f"C{OPS_FIRST}:C{OPS_LAST}",
-        FormulaRule(formula=[f'C{OPS_FIRST}="{txn}"'], fill=fill(color))
+        f"D{OPS_FIRST}:D{OPS_LAST}",
+        FormulaRule(formula=[f'D{OPS_FIRST}="{txn}"'], fill=fill(color))
     )
 
-bud.freeze_panes = f"B{OPS_FIRST}"
+bud.freeze_panes = f"B{OPS_FIRST + 1}"
+
+# ---- категории за месяц ----
+CAT_HDR_ROW = OPS_LAST + 3
+box_header(bud, f"D{CAT_HDR_ROW}:F{CAT_HDR_ROW}", "ДОХОДЫ ПО КАТЕГОРИЯМ (месяц)", SAGE)
+box_header(bud, f"H{CAT_HDR_ROW}:J{CAT_HDR_ROW}", "РАСХОДЫ ПО КАТЕГОРИЯМ (месяц)", PINK)
+SUB_ROW = CAT_HDR_ROW + 1
+for col, lbl in zip("DEF", ["Категория", "Сумма", "%"]):
+    c = bud[f"{col}{SUB_ROW}"]
+    c.value = lbl
+    c.font = FONT_LBL
+    c.fill = fill(SAGE_LIGHT)
+    c.alignment = Alignment(horizontal="center")
+    c.border = BORDER_ALL
+for col, lbl in zip("HIJ", ["Категория", "Сумма", "%"]):
+    c = bud[f"{col}{SUB_ROW}"]
+    c.value = lbl
+    c.font = FONT_LBL
+    c.fill = fill(PINK_LIGHT)
+    c.alignment = Alignment(horizontal="center")
+    c.border = BORDER_ALL
+
+CAT_DATA_ROW = SUB_ROW + 1
+for i, cat in enumerate(income_cats):
+    r = CAT_DATA_ROW + i
+    bud[f"D{r}"] = cat
+    bud[f"E{r}"] = (f'=SUMPRODUCT(({D_RANGE}="Доход")*({E_RANGE}="{cat}")'
+                     f'*(YEAR({B_RANGE}+0)={YEAR_CELL})*(MONTH({B_RANGE}+0)={MONTH_NUM})*{F_RANGE})')
+    bud[f"F{r}"] = f'=IFERROR(E{r}/$B$6,0)'
+    bud[f"F{r}"].number_format = "0%"
+    for col in "DEF":
+        bud[f"{col}{r}"].font = FONT_BODY
+        bud[f"{col}{r}"].border = BORDER_ALL
+
+for i, cat in enumerate(expense_cats):
+    r = CAT_DATA_ROW + i
+    bud[f"H{r}"] = cat
+    bud[f"I{r}"] = (f'=SUMPRODUCT(({D_RANGE}="Расход")*({E_RANGE}="{cat}")'
+                     f'*(YEAR({B_RANGE}+0)={YEAR_CELL})*(MONTH({B_RANGE}+0)={MONTH_NUM})*{F_RANGE})')
+    bud[f"J{r}"] = f'=IFERROR(I{r}/$D$6,0)'
+    bud[f"J{r}"].number_format = "0%"
+    for col in "HIJ":
+        bud[f"{col}{r}"].font = FONT_BODY
+        bud[f"{col}{r}"].border = BORDER_ALL
+
+INCOME_CAT_LAST = CAT_DATA_ROW + len(income_cats) - 1
+EXPENSE_CAT_LAST = CAT_DATA_ROW + len(expense_cats) - 1
+
+# ---- динамика за год (весь выбранный год, без служебных категорий) ----
+DYN_HDR_ROW = CAT_HDR_ROW
+box_header(bud, f"L{DYN_HDR_ROW}:N{DYN_HDR_ROW}", "ДИНАМИКА ЗА ГОД", BLUE)
+DYN_SUB_ROW = SUB_ROW
+for col, lbl in zip("LMN", ["Месяц", "Доход", "Расход"]):
+    c = bud[f"{col}{DYN_SUB_ROW}"]
+    c.value = lbl
+    c.font = FONT_LBL
+    c.fill = fill(BLUE_LIGHT)
+    c.alignment = Alignment(horizontal="center")
+    c.border = BORDER_ALL
+
+DYN_DATA_ROW = DYN_SUB_ROW + 1
+for m in range(1, 13):
+    r = DYN_DATA_ROW + m - 1
+    bud[f"L{r}"] = f'=TEXT(DATE({YEAR_CELL},{m},1),"mmm yy")'
+    bud[f"M{r}"] = (f'=SUMPRODUCT(({D_RANGE}="Доход")*(YEAR({B_RANGE}+0)={YEAR_CELL})'
+                     f'*(MONTH({B_RANGE}+0)={m})*(COUNTIF({RANGE_SERVICE},{E_RANGE})=0)*{F_RANGE})')
+    bud[f"N{r}"] = (f'=SUMPRODUCT(({D_RANGE}="Расход")*(YEAR({B_RANGE}+0)={YEAR_CELL})'
+                     f'*(MONTH({B_RANGE}+0)={m})*(COUNTIF({RANGE_SERVICE},{E_RANGE})=0)*{F_RANGE})')
+    for col in "LMN":
+        bud[f"{col}{r}"].font = FONT_BODY
+        bud[f"{col}{r}"].border = BORDER_ALL
+DYN_DATA_LAST = DYN_DATA_ROW + 11
+
+# ---- диаграммы: отдельная колонка справа, без пересечений с таблицами ----
+CHART_ANCHOR_COL = "Q"
+pie_income = PieChart()
+pie_income.title = "Доходы по категориям (месяц)"
+pie_income.add_data(Reference(bud, min_col=5, min_row=CAT_DATA_ROW, max_row=INCOME_CAT_LAST))
+pie_income.set_categories(Reference(bud, min_col=4, min_row=CAT_DATA_ROW, max_row=INCOME_CAT_LAST))
+pie_income.height, pie_income.width = 8, 10
+bud.add_chart(pie_income, f"{CHART_ANCHOR_COL}5")
+
+pie_expense = PieChart()
+pie_expense.title = "Расходы по категориям (месяц)"
+pie_expense.add_data(Reference(bud, min_col=9, min_row=CAT_DATA_ROW, max_row=EXPENSE_CAT_LAST))
+pie_expense.set_categories(Reference(bud, min_col=8, min_row=CAT_DATA_ROW, max_row=EXPENSE_CAT_LAST))
+pie_expense.height, pie_expense.width = 8, 10
+bud.add_chart(pie_expense, f"{CHART_ANCHOR_COL}25")
+
+line = LineChart()
+line.title = "Динамика: доход / расход за год"
+line.add_data(Reference(bud, min_col=13, min_row=DYN_SUB_ROW, max_row=DYN_DATA_LAST), titles_from_data=True)
+line.add_data(Reference(bud, min_col=14, min_row=DYN_SUB_ROW, max_row=DYN_DATA_LAST), titles_from_data=True)
+line.set_categories(Reference(bud, min_col=12, min_row=DYN_DATA_ROW, max_row=DYN_DATA_LAST))
+line.height, line.width = 8, 14
+bud.add_chart(line, f"{CHART_ANCHOR_COL}45")
 
 # =====================================================================
 # final touches
