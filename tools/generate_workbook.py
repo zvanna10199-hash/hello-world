@@ -398,6 +398,28 @@ set_col_widths(tsk, {"A": 3, "B": 32, "C": 12, "D": 8, "E": 13, "F": 7, "G": 12,
 style_title(tsk, "A1:G1", "🗂  МОИ ЗАДАЧИ", BLUE)
 tsk.row_dimensions[1].height = 28
 
+# ---- month/year filter (applies to the dashboard below, not the task list itself) ----
+tsk["I2"] = "Месяц:"
+tsk["I2"].font = FONT_LBL
+tsk["J2"] = "Июль"
+tsk["J2"].font = FONT_H2
+tsk["J2"].fill = fill(YELLOW_LIGHT)
+tsk["J2"].alignment = Alignment(horizontal="center")
+tsk["J2"].border = BORDER_ALL
+add_list_validation(tsk, "J2", RANGE_MONTHS)
+
+tsk["K2"] = "Год:"
+tsk["K2"].font = FONT_LBL
+tsk["L2"] = 2026
+tsk["L2"].font = FONT_H2
+tsk["L2"].fill = fill(YELLOW_LIGHT)
+tsk["L2"].alignment = Alignment(horizontal="center")
+tsk["L2"].border = BORDER_ALL
+add_list_validation(tsk, "L2", RANGE_YEARS)
+
+TASK_MONTH_CELL, TASK_YEAR_CELL = "$J$2", "$L$2"
+TASK_MONTH_NUM = f"MATCH({TASK_MONTH_CELL},{RANGE_MONTHS},0)"
+
 TASK_HDR_ROW = 3
 for col, label in zip("BCDEFG", ["Задача", "Срок", "Дни ⏳", "Приоритет", "✅", "Категория"]):
     c = tsk[f"{col}{TASK_HDR_ROW}"]
@@ -407,7 +429,7 @@ for col, label in zip("BCDEFG", ["Задача", "Срок", "Дни ⏳", "Пр
     c.alignment = Alignment(horizontal="center")
     c.border = BORDER_ALL
 
-TASK_FIRST, TASK_LAST = TASK_HDR_ROW + 1, TASK_HDR_ROW + 12
+TASK_FIRST, TASK_LAST = TASK_HDR_ROW + 1, TASK_HDR_ROW + 20
 task_names = [
     "🚶 10k шагов", "📕 20 страниц книги", "✉️ Отправить письмо клиенту", "🧘 Медитация (10 мин)",
     "💰 Посчитать бюджет на месяц", "🎬 Сделать рилс", "💳 Оплатить кредит", "🗓 План на следующую неделю",
@@ -423,22 +445,26 @@ task_done = [False, False, True, False, False, False, True, False, True, False, 
 PRIORITY_COLORS = {"Срочно": "F2B8C2", "Высокий": PURPLE, "Средний": BLUE, "Низкий": SAGE}
 
 for i, r in enumerate(range(TASK_FIRST, TASK_LAST + 1)):
-    tsk.cell(row=r, column=2, value=task_names[i]).font = FONT_BODY
-    dcell = tsk.cell(row=r, column=3, value=f"=TODAY()+({task_offsets[i]})")
-    dcell.number_format = "dd.mm.yyyy"
-    dcell.font = FONT_BODY
-    dcell.alignment = Alignment(horizontal="center")
-    ddays = tsk.cell(row=r, column=4, value=f"=C{r}-TODAY()")
-    ddays.font = FONT_BODY
-    ddays.alignment = Alignment(horizontal="center")
-    pcell = tsk.cell(row=r, column=5, value=task_priorities[i])
-    pcell.font = FONT_BODY
-    pcell.alignment = Alignment(horizontal="center")
-    fcell = tsk.cell(row=r, column=6, value=task_done[i])
-    fcell.alignment = Alignment(horizontal="center")
-    ccell = tsk.cell(row=r, column=7, value=task_categories[i])
-    ccell.font = FONT_BODY
-    ccell.alignment = Alignment(horizontal="center")
+    if i < len(task_names):
+        tsk.cell(row=r, column=2, value=task_names[i]).font = FONT_BODY
+        dcell = tsk.cell(row=r, column=3, value=f"=TODAY()+({task_offsets[i]})")
+        dcell.number_format = "dd.mm.yyyy"
+        dcell.font = FONT_BODY
+        dcell.alignment = Alignment(horizontal="center")
+        ddays = tsk.cell(row=r, column=4, value=f"=C{r}-TODAY()")
+        ddays.font = FONT_BODY
+        ddays.alignment = Alignment(horizontal="center")
+        pcell = tsk.cell(row=r, column=5, value=task_priorities[i])
+        pcell.font = FONT_BODY
+        pcell.alignment = Alignment(horizontal="center")
+        fcell = tsk.cell(row=r, column=6, value=task_done[i])
+        fcell.alignment = Alignment(horizontal="center")
+        ccell = tsk.cell(row=r, column=7, value=task_categories[i])
+        ccell.font = FONT_BODY
+        ccell.alignment = Alignment(horizontal="center")
+    else:
+        tsk.cell(row=r, column=2).font = FONT_BODY
+        tsk.cell(row=r, column=6, value=False)
     for col in range(2, 8):
         tsk.cell(row=r, column=col).border = BORDER_ALL
 
@@ -461,7 +487,18 @@ tsk.conditional_formatting.add(
     CellIsRule(operator="lessThan", formula=["0"], font=Font(name="Roboto", size=10, bold=True, color="C0392B"))
 )
 
-# ---- summary stat rows ----
+# ---- helpers: count tasks whose Срок falls in the selected Месяц/Год ----
+def task_month_bare(extra_cond=None):
+    date_cond = (f'(YEAR($C${TASK_FIRST}:$C${TASK_LAST}+0)={TASK_YEAR_CELL})'
+                 f'*(MONTH($C${TASK_FIRST}:$C${TASK_LAST}+0)={TASK_MONTH_NUM})')
+    if extra_cond:
+        return f'SUMPRODUCT({extra_cond}*{date_cond})'
+    return f'SUMPRODUCT({date_cond})'
+
+def task_month_formula(extra_cond=None):
+    return f'={task_month_bare(extra_cond)}'
+
+# ---- summary stat rows (задачи со сроком в выбранном месяце) ----
 STAT_ROW1 = TASK_LAST + 2
 prio_labels = ["СРОЧНЫЕ", "ВЫСОКИЙ ПРИОРИТЕТ", "СРЕДНИЙ ПРИОРИТЕТ", "НИЗКИЙ ПРИОРИТЕТ"]
 prio_colors_stat = ["F2B8C2", PURPLE, BLUE, SAGE]
@@ -472,7 +509,7 @@ for i, (lbl, color) in enumerate(zip(prio_labels, prio_colors_stat)):
     lc.fill = fill(color)
     lc.border = BORDER_ALL
     prio_word = ["Срочно", "Высокий", "Средний", "Низкий"][i]
-    vc = tsk.cell(row=r, column=3, value=f'=COUNTIF($E${TASK_FIRST}:$E${TASK_LAST},"{prio_word}")')
+    vc = tsk.cell(row=r, column=3, value=task_month_formula(f'($E${TASK_FIRST}:$E${TASK_LAST}="{prio_word}")'))
     vc.font = FONT_H2
     vc.fill = fill(color)
     vc.alignment = Alignment(horizontal="center")
@@ -488,10 +525,10 @@ for i, lbl in enumerate(cat_labels):
     lc.alignment = Alignment(horizontal="center")
     vc = tsk.cell(row=r, column=7)
     if i == 0:
-        vc.value = f"=COUNTA($B${TASK_FIRST}:$B${TASK_LAST})"
+        vc.value = task_month_formula()
     else:
         word = {1: "Личное", 2: "Работа", 3: "Другое"}[i]
-        vc.value = f'=COUNTIF($G${TASK_FIRST}:$G${TASK_LAST},"{word}")'
+        vc.value = task_month_formula(f'($G${TASK_FIRST}:$G${TASK_LAST}="{word}")')
     vc.font = FONT_H2
     vc.fill = fill(BLUE_LIGHT)
     vc.alignment = Alignment(horizontal="center")
@@ -513,14 +550,14 @@ tsk.conditional_formatting.add(
     FormulaRule(formula=[f'AND($C${FILTER_ROW}<>"(Все)",$G{TASK_FIRST}=$C${FILTER_ROW})'], fill=fill(YELLOW_LIGHT))
 )
 
-# stat tiles: done/progress/deadline-today/overdue
+# stat tiles: done/progress (за выбранный месяц) + deadline-today/overdue (всегда "сегодня")
 TILE_ROW = STAT_ROW1
-tsk.cell(row=TILE_ROW, column=12, value="ЗАДАЧ ВЫПОЛНЕНО").font = FONT_LBL
-tile_done = tsk.cell(row=TILE_ROW, column=13,
-                      value=f'=COUNTIF($F${TASK_FIRST}:$F${TASK_LAST},TRUE)&"/"&COUNTA($B${TASK_FIRST}:$B${TASK_LAST})')
-tsk.cell(row=TILE_ROW + 1, column=12, value="ПРОГРЕСС").font = FONT_LBL
-tile_pct = tsk.cell(row=TILE_ROW + 1, column=13,
-                     value=f'=COUNTIF($F${TASK_FIRST}:$F${TASK_LAST},TRUE)/COUNTA($B${TASK_FIRST}:$B${TASK_LAST})')
+DONE_MONTH_EXPR = task_month_bare(f'($F${TASK_FIRST}:$F${TASK_LAST}=TRUE)')
+TOTAL_MONTH_EXPR = task_month_bare()
+tsk.cell(row=TILE_ROW, column=12, value="ЗАДАЧ ВЫПОЛНЕНО (месяц)").font = FONT_LBL
+tile_done = tsk.cell(row=TILE_ROW, column=13, value=f'={DONE_MONTH_EXPR}&"/"&{TOTAL_MONTH_EXPR}')
+tsk.cell(row=TILE_ROW + 1, column=12, value="ПРОГРЕСС (месяц)").font = FONT_LBL
+tile_pct = tsk.cell(row=TILE_ROW + 1, column=13, value=f'=IFERROR({DONE_MONTH_EXPR}/{TOTAL_MONTH_EXPR},0)')
 tile_pct.number_format = "0%"
 tsk.cell(row=TILE_ROW + 2, column=12, value="ДЕДЛАЙН СЕГОДНЯ").font = FONT_LBL
 tsk.cell(row=TILE_ROW + 2, column=13, value=f'=COUNTIF($C${TASK_FIRST}:$C${TASK_LAST},TODAY())')
@@ -541,19 +578,21 @@ tsk.conditional_formatting.add(
     CellIsRule(operator="greaterThan", formula=["0"], fill=fill("F2B8C2"), font=Font(bold=True, color="7A2530"))
 )
 
-# priority helper table (for pie chart)
+# priority helper table (for pie chart) — за выбранный месяц
 PH_ROW = STAT_ROW1
 for i, (prio, color) in enumerate(PRIORITY_COLORS.items()):
     r = PH_ROW + i
     tsk.cell(row=r, column=9, value=prio).font = FONT_BODY
-    tsk.cell(row=r, column=10, value=f'=COUNTIF($E${TASK_FIRST}:$E${TASK_LAST},"{prio}")').font = FONT_BODY
+    tsk.cell(row=r, column=10,
+             value=task_month_formula(f'($E${TASK_FIRST}:$E${TASK_LAST}="{prio}")')).font = FONT_BODY
 
-# category helper table (for bar chart)
+# category helper table (for bar chart) — за выбранный месяц
 CH_ROW = STAT_ROW1
 for i, word in enumerate(["Работа", "Личное", "Другое"]):
     r = CH_ROW + i
     tsk.cell(row=r, column=14, value=word).font = FONT_BODY
-    tsk.cell(row=r, column=15, value=f'=COUNTIF($G${TASK_FIRST}:$G${TASK_LAST},"{word}")').font = FONT_BODY
+    tsk.cell(row=r, column=15,
+             value=task_month_formula(f'($G${TASK_FIRST}:$G${TASK_LAST}="{word}")')).font = FONT_BODY
 
 pie = PieChart()
 pie.title = "Задачи по приоритету"
@@ -611,13 +650,15 @@ def build_filter_block(ws, title, prio_word, color, start_col, header_row):
         cc.alignment = Alignment(horizontal="center")
         cc.border = BORDER_ALL
     data_row = sub_row + 1
-    rng = f"$B${TASK_FIRST}:$B${TASK_LAST}"
     crit_rng = f"$E${TASK_FIRST}:$E${TASK_LAST}"
+    date_cond = (f'(YEAR($C${TASK_FIRST}:$C${TASK_LAST}+0)={TASK_YEAR_CELL})'
+                 f'*(MONTH($C${TASK_FIRST}:$C${TASK_LAST}+0)={TASK_MONTH_NUM})')
+    match_cond = f'({crit_rng}="{prio_word}")*{date_cond}'
     formulas = [
-        f'=IFERROR(FILTER($B${TASK_FIRST}:$B${TASK_LAST},{crit_rng}="{prio_word}"),"")',
-        f'=IFERROR(FILTER($C${TASK_FIRST}:$C${TASK_LAST},{crit_rng}="{prio_word}"),"")',
-        f'=IFERROR(FILTER($D${TASK_FIRST}:$D${TASK_LAST},{crit_rng}="{prio_word}"),"")',
-        f'=IFERROR(FILTER($G${TASK_FIRST}:$G${TASK_LAST},{crit_rng}="{prio_word}"),"")',
+        f'=IFERROR(FILTER($B${TASK_FIRST}:$B${TASK_LAST},{match_cond}),"")',
+        f'=IFERROR(FILTER($C${TASK_FIRST}:$C${TASK_LAST},{match_cond}),"")',
+        f'=IFERROR(FILTER($D${TASK_FIRST}:$D${TASK_LAST},{match_cond}),"")',
+        f'=IFERROR(FILTER($G${TASK_FIRST}:$G${TASK_LAST},{match_cond}),"")',
     ]
     for i, f_ in enumerate(formulas):
         cell = ws.cell(row=data_row, column=start_col + i, value=f_)
