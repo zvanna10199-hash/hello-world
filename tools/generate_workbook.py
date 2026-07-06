@@ -163,6 +163,24 @@ for i, val in enumerate(years_list):
     ref.cell(row=3 + i, column=13, value=val).font = FONT_BODY
 ref.column_dimensions["M"].width = 10
 
+credit_types = ["Кредит", "Кредитная карта"]
+credit_statuses = ["Активен", "Закрыт"]
+payoff_strategies = ["Снежный ком", "Лавина"]
+
+ref["N2"] = "Тип кредита"
+ref["O2"] = "Статус кредита"
+ref["P2"] = "Стратегия закрытия"
+for col, data in zip((14, 15, 16), (credit_types, credit_statuses, payoff_strategies)):
+    c = ref.cell(row=2, column=col)
+    c.font = FONT_LBL
+    c.fill = fill(BLUE_LIGHT)
+    c.border = BORDER_ALL
+    for i, val in enumerate(data):
+        ref.cell(row=3 + i, column=col, value=val).font = FONT_BODY
+ref.column_dimensions["N"].width = 16
+ref.column_dimensions["O"].width = 12
+ref.column_dimensions["P"].width = 16
+
 ref.sheet_view.showGridLines = False
 
 def named_list_range(col_letter, n):
@@ -178,6 +196,9 @@ RANGE_STATUS = named_list_range("F", len(statuses))
 RANGE_ACCOUNTS = named_list_range("K", len(accounts))
 RANGE_MONTHS = named_list_range("L", len(month_names))
 RANGE_YEARS = named_list_range("M", len(years_list))
+RANGE_CREDIT_TYPES = named_list_range("N", len(credit_types))
+RANGE_CREDIT_STATUSES = named_list_range("O", len(credit_statuses))
+RANGE_PAYOFF_STRATEGIES = named_list_range("P", len(payoff_strategies))
 
 def add_checkbox_validation(ws, cell_range):
     dv = DataValidation(type="list", formula1='"TRUE,FALSE"', allow_blank=True)
@@ -1017,9 +1038,219 @@ line.height, line.width = 7, 9
 bud.add_chart(line, f"J{CHART_ROW}")
 
 # =====================================================================
+# SHEET: КРЕДИТЫ (кредиты, кредитные карты и план их закрытия)
+# =====================================================================
+cr = wb.create_sheet("Кредиты")
+cr.sheet_properties.tabColor = PURPLE_DK
+cr.sheet_view.showGridLines = False
+
+set_col_widths(cr, {"A": 3, "B": 18, "C": 14, "D": 14, "E": 12, "F": 12, "G": 8,
+                     "H": 11, "I": 13, "J": 10, "K": 9, "L": 9, "M": 10, "N": 20})
+
+style_title(cr, "A1:N1", "💳  КРЕДИТЫ И КРЕДИТНЫЕ КАРТЫ", PURPLE)
+cr.row_dimensions[1].height = 28
+
+# ---- стратегия закрытия ----
+cr["B3"] = "Стратегия закрытия:"
+cr["B3"].font = FONT_LBL
+cr["C3"] = "Снежный ком"
+cr["C3"].font = FONT_H2
+cr["C3"].fill = fill(YELLOW_LIGHT)
+cr["C3"].alignment = Alignment(horizontal="center")
+cr["C3"].border = BORDER_ALL
+add_list_validation(cr, "C3", RANGE_PAYOFF_STRATEGIES)
+cr.merge_cells("E3:N3")
+cr["E3"] = ("ℹ️ Снежный ком — сначала гасите кредит с наименьшим остатком (быстрые победы, мотивация). "
+            "Лавина — сначала гасите кредит с наибольшей ставкой (математически выгоднее).")
+cr["E3"].font = FONT_NOTE
+cr["E3"].fill = fill(YELLOW_LIGHT)
+cr["E3"].alignment = Alignment(wrap_text=True, vertical="center")
+
+CR_FIRST, CR_LAST = 11, 20
+F_RNG = f"$F${CR_FIRST}:$F${CR_LAST}"   # Остаток долга
+G_RNG = f"$G${CR_FIRST}:$G${CR_LAST}"   # Ставка %
+J_RNG = f"$J${CR_FIRST}:$J${CR_LAST}"   # Статус
+M_RNG = f"$M${CR_FIRST}:$M${CR_LAST}"   # Осталось мес.
+
+# ---- итоги ----
+box_header(cr, "B5:C5", "ВСЕГО ОСТАТОК ДОЛГА", SAGE)
+box_header(cr, "D5:E5", "ЕЖЕМЕСЯЧНЫЙ ПЛАТЁЖ", PINK)
+box_header(cr, "F5:H5", "ПОЛНОЕ ПОГАШЕНИЕ ПРИМЕРНО", PURPLE)
+
+cr.merge_cells("B6:C7")
+cr["B6"] = f'=SUMIF($J${CR_FIRST}:$J${CR_LAST},"Активен",{F_RNG})'
+cr["B6"].number_format = '#,##0" ₽"'
+cr["B6"].font = FONT_BIG
+cr["B6"].alignment = Alignment(horizontal="center", vertical="center")
+
+cr.merge_cells("D6:E7")
+cr["D6"] = f'=SUMIF($J${CR_FIRST}:$J${CR_LAST},"Активен",$H${CR_FIRST}:$H${CR_LAST})'
+cr["D6"].number_format = '#,##0" ₽"'
+cr["D6"].font = FONT_BIG
+cr["D6"].alignment = Alignment(horizontal="center", vertical="center")
+
+cr.merge_cells("F6:H7")
+cr["F6"] = f'="≈ "&TEXT(EDATE(TODAY(),MAXIFS({M_RNG},$J${CR_FIRST}:$J${CR_LAST},"Активен")),"mmmm yyyy")'
+cr["F6"].font = FONT_H2
+cr["F6"].alignment = Alignment(horizontal="center", vertical="center")
+
+for rng in ("B6:C7", "D6:E7", "F6:H7"):
+    for row in cr[rng]:
+        for c in row:
+            c.border = BORDER_ALL
+
+# ---- основная таблица кредитов ----
+box_header(cr, "B9:N9", "КРЕДИТЫ И КРЕДИТНЫЕ КАРТЫ", PURPLE)
+headers_cr = ["Счёт/Карта", "Тип", "Банк", "Сумма кредита", "Остаток долга", "Ставка %",
+              "Платёж/мес", "Плановое закрытие", "Статус", "Приоритет", "Прогресс", "Осталось мес.", "Заметки"]
+for col, lbl in zip("BCDEFGHIJKLMN", headers_cr):
+    c = cr[f"{col}10"]
+    c.value = lbl
+    c.font = FONT_LBL
+    c.fill = fill(PURPLE)
+    c.alignment = Alignment(horizontal="center", wrap_text=True)
+    c.border = BORDER_ALL
+
+example_credits = [
+    ("Кредит 1", "Кредит", "Сбербанк", 300000, 180000, 12, 15000, datetime.date(2027, 6, 1), "Активен"),
+    ("Кредит 2", "Кредит", "Тинькофф", 150000, 45000, 15, 8000, datetime.date(2026, 12, 1), "Активен"),
+    ("Карта Тинькофф", "Кредитная карта", "Тинькофф", 100000, 32000, 24, 3000, datetime.date(2028, 1, 1), "Активен"),
+    ("Кредит на телефон", "Кредит", "Сбербанк", 40000, 0, 10, 4000, datetime.date(2026, 3, 1), "Закрыт"),
+]
+
+for i, r in enumerate(range(CR_FIRST, CR_LAST + 1)):
+    if i < len(example_credits):
+        name_v, type_v, bank_v, sum_v, bal_v, rate_v, pay_v, date_v, status_v = example_credits[i]
+        cr[f"B{r}"] = name_v
+        cr[f"C{r}"] = type_v
+        cr[f"D{r}"] = bank_v
+        cr[f"E{r}"] = sum_v
+        cr[f"F{r}"] = bal_v
+        cr[f"G{r}"] = rate_v
+        cr[f"H{r}"] = pay_v
+        cr[f"I{r}"] = date_v
+        cr[f"I{r}"].number_format = "dd.mm.yyyy"
+        cr[f"J{r}"] = status_v
+    cr[f"K{r}"] = (f'=IF($J{r}<>"Активен","",IF($C$3="Снежный ком",'
+                    f'SUMPRODUCT(({F_RNG}<F{r})*($J${CR_FIRST}:$J${CR_LAST}="Активен"))+1,'
+                    f'SUMPRODUCT(({G_RNG}>G{r})*($J${CR_FIRST}:$J${CR_LAST}="Активен"))+1))')
+    cr[f"L{r}"] = f'=IFERROR((E{r}-F{r})/E{r},0)'
+    cr[f"L{r}"].number_format = "0%"
+    cr[f"M{r}"] = f'=IF(OR(F{r}="",H{r}="",H{r}=0),"",ROUNDUP(F{r}/H{r},0))'
+    for col in "BCDEFGHIJKLMN":
+        cell = cr[f"{col}{r}"]
+        cell.font = FONT_BODY
+        cell.border = BORDER_ALL
+        cell.alignment = Alignment(horizontal="center") if col not in "BDN" else Alignment(horizontal="left")
+    cr[f"E{r}"].number_format = '#,##0" ₽"'
+    cr[f"F{r}"].number_format = '#,##0" ₽"'
+    cr[f"H{r}"].number_format = '#,##0" ₽"'
+
+add_list_validation(cr, f"C{CR_FIRST}:C{CR_LAST}", RANGE_CREDIT_TYPES)
+add_list_validation(cr, f"B{CR_FIRST}:B{CR_LAST}", RANGE_ACCOUNTS)
+add_list_validation(cr, f"J{CR_FIRST}:J{CR_LAST}", RANGE_CREDIT_STATUSES)
+
+status_colors = {"Активен": SAGE, "Закрыт": GRAY_LIGHT}
+for status, color in status_colors.items():
+    cr.conditional_formatting.add(
+        f"J{CR_FIRST}:J{CR_LAST}",
+        FormulaRule(formula=[f'J{CR_FIRST}="{status}"'], fill=fill(color))
+    )
+cr.conditional_formatting.add(
+    f"L{CR_FIRST}:L{CR_LAST}",
+    DataBarRule(start_type="num", start_value=0, end_type="num", end_value=1, color=SAGE_DK)
+)
+cr.freeze_panes = f"B{CR_FIRST}"
+
+# ---- диаграммы под таблицей: остаток по кредитам ----
+CR_CHART_ROW = CR_LAST + 2
+bar_cr = BarChart()
+bar_cr.type = "col"
+bar_cr.title = "Остаток долга по кредитам"
+bar_cr.add_data(Reference(cr, min_col=6, min_row=CR_FIRST, max_row=CR_LAST))
+bar_cr.set_categories(Reference(cr, min_col=2, min_row=CR_FIRST, max_row=CR_LAST))
+bar_cr.height, bar_cr.width = 7, 10
+bar_cr.legend = None
+cr.add_chart(bar_cr, f"B{CR_CHART_ROW}")
+
+pie_cr = PieChart()
+pie_cr.title = "Доля в общем долге"
+pie_cr.add_data(Reference(cr, min_col=6, min_row=CR_FIRST, max_row=CR_LAST))
+pie_cr.set_categories(Reference(cr, min_col=2, min_row=CR_FIRST, max_row=CR_LAST))
+pie_cr.height, pie_cr.width = 7, 10
+cr.add_chart(pie_cr, f"J{CR_CHART_ROW}")
+
+# ---- прогноз остатка по месяцам (при текущих платеже и ставке) ----
+PROJ_HDR_ROW = CR_CHART_ROW + 15
+box_header(cr, f"B{PROJ_HDR_ROW}:N{PROJ_HDR_ROW}", "ПРОГНОЗ ОСТАТКА ПО МЕСЯЦАМ (при текущих платежах)", BLUE)
+PROJ_SUB_ROW = PROJ_HDR_ROW + 1
+cr[f"B{PROJ_SUB_ROW}"] = "Счёт/Карта"
+cr[f"B{PROJ_SUB_ROW}"].font = FONT_LBL
+cr[f"B{PROJ_SUB_ROW}"].fill = fill(BLUE_LIGHT)
+cr[f"B{PROJ_SUB_ROW}"].border = BORDER_ALL
+for m in range(1, 13):
+    col = 2 + m  # C..N
+    letter = get_column_letter(col)
+    c = cr[f"{letter}{PROJ_SUB_ROW}"]
+    c.value = f'=TEXT(EDATE(TODAY(),{m}),"mmm yy")'
+    c.font = FONT_LBL
+    c.fill = fill(BLUE_LIGHT)
+    c.alignment = Alignment(horizontal="center")
+    c.border = BORDER_ALL
+
+PROJ_FIRST = PROJ_SUB_ROW + 1
+PROJ_LAST = PROJ_FIRST + (CR_LAST - CR_FIRST)
+for i in range(CR_LAST - CR_FIRST + 1):
+    proj_row = PROJ_FIRST + i
+    cr_row = CR_FIRST + i
+    cr[f"B{proj_row}"] = f"=B{cr_row}"
+    cr[f"B{proj_row}"].font = FONT_BODY
+    cr[f"B{proj_row}"].border = BORDER_ALL
+    for m in range(1, 13):
+        col = 2 + m
+        letter = get_column_letter(col)
+        if m == 1:
+            prev_ref = f"$F${cr_row}"
+        else:
+            prev_letter = get_column_letter(col - 1)
+            prev_ref = f"{prev_letter}{proj_row}"
+        cell = cr[f"{letter}{proj_row}"]
+        cell.value = (f'=IF({prev_ref}="","",MAX(0,{prev_ref}*(1+$G${cr_row}/100/12)-$H${cr_row}))')
+        cell.font = FONT_BODY
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = BORDER_ALL
+        cell.number_format = '#,##0'
+
+TOTAL_ROW = PROJ_LAST + 1
+cr[f"B{TOTAL_ROW}"] = "ИТОГО"
+cr[f"B{TOTAL_ROW}"].font = FONT_LBL
+cr[f"B{TOTAL_ROW}"].fill = fill(GRAY_LIGHT)
+cr[f"B{TOTAL_ROW}"].border = BORDER_ALL
+for m in range(1, 13):
+    col = 2 + m
+    letter = get_column_letter(col)
+    c = cr[f"{letter}{TOTAL_ROW}"]
+    c.value = f'=SUM({letter}{PROJ_FIRST}:{letter}{PROJ_LAST})'
+    c.font = FONT_LBL
+    c.fill = fill(GRAY_LIGHT)
+    c.alignment = Alignment(horizontal="center")
+    c.border = BORDER_ALL
+    c.number_format = '#,##0'
+
+# ---- диаграмма: траектория общего долга ----
+PROJ_CHART_ROW = TOTAL_ROW + 2
+line_cr = LineChart()
+line_cr.title = "Прогноз общего остатка долга"
+total_row_ref = Reference(cr, min_col=2, max_col=14, min_row=TOTAL_ROW, max_row=TOTAL_ROW)
+line_cr.add_data(total_row_ref, titles_from_data=True, from_rows=True)
+line_cr.set_categories(Reference(cr, min_col=3, max_col=14, min_row=PROJ_SUB_ROW, max_row=PROJ_SUB_ROW))
+line_cr.height, line_cr.width = 8, 16
+cr.add_chart(line_cr, f"B{PROJ_CHART_ROW}")
+
+# =====================================================================
 # final touches
 # =====================================================================
-wb._sheets = [bud, jrn, hab, tsk, ref]
+wb._sheets = [bud, jrn, cr, hab, tsk, ref]
 wb.active = 0
 
 OUT_PATH = "Планировщик_Бюджет_Привычки.xlsx"
