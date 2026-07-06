@@ -407,50 +407,27 @@ for r in range(NOTES_HDR_ROW + 1, NOTES_HDR_ROW + 7):
         c.border = Border(bottom=THIN)
 
 # =====================================================================
-# SHEET: ПЛАНИРОВЩИК ЗАДАЧ
+# SHEET: СПИСОК ЗАДАЧ (ввод данных — как «Журнал операций» для бюджета)
 # =====================================================================
-tsk = wb.create_sheet("Планировщик задач")
-tsk.sheet_properties.tabColor = BLUE_DK
-tsk.sheet_view.showGridLines = False
+lst = wb.create_sheet("Список задач")
+lst.sheet_properties.tabColor = BLUE_DK
+lst.sheet_view.showGridLines = False
 
-set_col_widths(tsk, {"A": 3, "B": 32, "C": 12, "D": 8, "E": 13, "F": 7, "G": 12,
-                      "H": 3, "I": 15, "J": 8, "K": 3, "L": 22, "M": 10, "N": 15, "O": 8})
+set_col_widths(lst, {"A": 3, "B": 5, "C": 32, "D": 12, "E": 13, "F": 12, "G": 7, "H": 9, "I": 7})
 
-style_title(tsk, "A1:G1", "🗂  МОИ ЗАДАЧИ", BLUE)
-tsk.row_dimensions[1].height = 28
+style_title(lst, "A1:I1", "🗂  СПИСОК ЗАДАЧ", BLUE)
+lst.row_dimensions[1].height = 28
 
-# ---- month/year filter (applies to the dashboard below, not the task list itself) ----
-tsk["I2"] = "Месяц:"
-tsk["I2"].font = FONT_LBL
-tsk["J2"] = "Июль"
-tsk["J2"].font = FONT_H2
-tsk["J2"].fill = fill(YELLOW_LIGHT)
-tsk["J2"].alignment = Alignment(horizontal="center")
-tsk["J2"].border = BORDER_ALL
-add_list_validation(tsk, "J2", RANGE_MONTHS)
-
-tsk["K2"] = "Год:"
-tsk["K2"].font = FONT_LBL
-tsk["L2"] = 2026
-tsk["L2"].font = FONT_H2
-tsk["L2"].fill = fill(YELLOW_LIGHT)
-tsk["L2"].alignment = Alignment(horizontal="center")
-tsk["L2"].border = BORDER_ALL
-add_list_validation(tsk, "L2", RANGE_YEARS)
-
-TASK_MONTH_CELL, TASK_YEAR_CELL = "$J$2", "$L$2"
-TASK_MONTH_NUM = f"MATCH({TASK_MONTH_CELL},{RANGE_MONTHS},0)"
-
-TASK_HDR_ROW = 3
-for col, label in zip("BCDEFG", ["Задача", "Срок", "Дни ⏳", "Приоритет", "✅", "Категория"]):
-    c = tsk[f"{col}{TASK_HDR_ROW}"]
+LIST_HDR_ROW = 3
+for col, label in zip("BCDEFGHI", ["№", "Задача", "Срок", "Приоритет", "Категория", "✅", "Дни ⏳", "Ранг"]):
+    c = lst[f"{col}{LIST_HDR_ROW}"]
     c.value = label
     c.font = FONT_LBL
     c.fill = fill(BLUE_LIGHT)
     c.alignment = Alignment(horizontal="center")
     c.border = BORDER_ALL
 
-TASK_FIRST, TASK_LAST = TASK_HDR_ROW + 1, TASK_HDR_ROW + 20
+LIST_FIRST, LIST_LAST = LIST_HDR_ROW + 1, LIST_HDR_ROW + 30
 task_names = [
     "🚶 10k шагов", "📕 20 страниц книги", "✉️ Отправить письмо клиенту", "🧘 Медитация (10 мин)",
     "💰 Посчитать бюджет на месяц", "🎬 Сделать рилс", "💳 Оплатить кредит", "🗓 План на следующую неделю",
@@ -465,238 +442,235 @@ task_done = [False, False, True, False, False, False, True, False, True, False, 
 
 PRIORITY_COLORS = {"Срочно": "F2B8C2", "Высокий": PURPLE, "Средний": BLUE, "Низкий": SAGE}
 
-for i, r in enumerate(range(TASK_FIRST, TASK_LAST + 1)):
+for i, r in enumerate(range(LIST_FIRST, LIST_LAST + 1)):
+    lst.cell(row=r, column=2, value=i + 1).font = FONT_BODY
     if i < len(task_names):
-        tsk.cell(row=r, column=2, value=task_names[i]).font = FONT_BODY
-        dcell = tsk.cell(row=r, column=3, value=f"=TODAY()+({task_offsets[i]})")
+        lst.cell(row=r, column=3, value=task_names[i]).font = FONT_BODY
+        dcell = lst.cell(row=r, column=4, value=f"=TODAY()+({task_offsets[i]})")
         dcell.number_format = "dd.mm.yyyy"
         dcell.font = FONT_BODY
         dcell.alignment = Alignment(horizontal="center")
-        ddays = tsk.cell(row=r, column=4, value=f"=C{r}-TODAY()")
-        ddays.font = FONT_BODY
-        ddays.alignment = Alignment(horizontal="center")
-        pcell = tsk.cell(row=r, column=5, value=task_priorities[i])
+        pcell = lst.cell(row=r, column=5, value=task_priorities[i])
         pcell.font = FONT_BODY
         pcell.alignment = Alignment(horizontal="center")
-        fcell = tsk.cell(row=r, column=6, value=task_done[i])
-        fcell.alignment = Alignment(horizontal="center")
-        ccell = tsk.cell(row=r, column=7, value=task_categories[i])
+        ccell = lst.cell(row=r, column=6, value=task_categories[i])
         ccell.font = FONT_BODY
         ccell.alignment = Alignment(horizontal="center")
+        lst.cell(row=r, column=7, value=task_done[i])
     else:
-        tsk.cell(row=r, column=2).font = FONT_BODY
-        tsk.cell(row=r, column=6, value=False)
-    for col in range(2, 8):
-        tsk.cell(row=r, column=col).border = BORDER_ALL
+        lst.cell(row=r, column=7, value=False)
+    days_c = lst.cell(row=r, column=8, value=f'=IF(D{r}="","",D{r}-TODAY())')
+    days_c.font = FONT_BODY
+    days_c.alignment = Alignment(horizontal="center")
+    rank_c = lst.cell(row=r, column=9, value=f'=IFERROR(MATCH(E{r},{RANGE_PRIORITY},0),"")')
+    rank_c.font = FONT_NOTE
+    rank_c.alignment = Alignment(horizontal="center")
+    for col in range(2, 10):
+        lst.cell(row=r, column=col).border = BORDER_ALL
+    lst.cell(row=r, column=6).alignment = Alignment(horizontal="center")
 
-TASK_RANGE_ALL = f"B{TASK_FIRST}:G{TASK_LAST}"
-add_list_validation(tsk, f"E{TASK_FIRST}:E{TASK_LAST}", RANGE_PRIORITY)
-add_list_validation(tsk, f"G{TASK_FIRST}:G{TASK_LAST}", RANGE_TASKCAT)
-add_checkbox_validation(tsk, f"F{TASK_FIRST}:F{TASK_LAST}")
+LIST_RANGE_ALL = f"B{LIST_FIRST}:I{LIST_LAST}"
+add_list_validation(lst, f"E{LIST_FIRST}:E{LIST_LAST}", RANGE_PRIORITY)
+add_list_validation(lst, f"F{LIST_FIRST}:F{LIST_LAST}", RANGE_TASKCAT)
+add_checkbox_validation(lst, f"G{LIST_FIRST}:G{LIST_LAST}")
 
 for prio, color in PRIORITY_COLORS.items():
-    tsk.conditional_formatting.add(
-        f"E{TASK_FIRST}:E{TASK_LAST}",
-        FormulaRule(formula=[f'E{TASK_FIRST}="{prio}"'], fill=fill(color))
+    lst.conditional_formatting.add(
+        f"E{LIST_FIRST}:E{LIST_LAST}",
+        FormulaRule(formula=[f'E{LIST_FIRST}="{prio}"'], fill=fill(color))
     )
-tsk.conditional_formatting.add(
-    TASK_RANGE_ALL,
-    FormulaRule(formula=[f"$F{TASK_FIRST}=TRUE"], font=Font(name="Roboto", size=10, strike=True, color="ABABAB"))
+lst.conditional_formatting.add(
+    LIST_RANGE_ALL,
+    FormulaRule(formula=[f"$G{LIST_FIRST}=TRUE"], font=Font(name="Roboto", size=10, strike=True, color="ABABAB"))
 )
-tsk.conditional_formatting.add(
-    f"D{TASK_FIRST}:D{TASK_LAST}",
+lst.conditional_formatting.add(
+    f"H{LIST_FIRST}:H{LIST_LAST}",
     CellIsRule(operator="lessThan", formula=["0"], font=Font(name="Roboto", size=10, bold=True, color="C0392B"))
 )
+lst.freeze_panes = f"C{LIST_FIRST}"
 
-# ---- helpers: count tasks whose Срок falls in the selected Месяц/Год ----
-def task_month_bare(extra_cond=None):
-    date_cond = (f'(YEAR($C${TASK_FIRST}:$C${TASK_LAST}+0)={TASK_YEAR_CELL})'
-                 f'*(MONTH($C${TASK_FIRST}:$C${TASK_LAST}+0)={TASK_MONTH_NUM})')
-    if extra_cond:
-        return f'SUMPRODUCT({extra_cond}*{date_cond})'
-    return f'SUMPRODUCT({date_cond})'
+# =====================================================================
+# SHEET: ПЛАНИРОВЩИК ЗАДАЧ (дашборд — сам список остаётся на «Список задач»)
+# =====================================================================
+tsk = wb.create_sheet("Планировщик задач")
+tsk.sheet_properties.tabColor = BLUE_DK
+tsk.sheet_view.showGridLines = False
 
-def task_month_formula(extra_cond=None):
-    return f'={task_month_bare(extra_cond)}'
+set_col_widths(tsk, {"A": 3, "B": 15, "C": 12, "D": 10, "E": 3,
+                      "F": 15, "G": 12, "H": 10, "I": 3,
+                      "J": 26, "K": 12, "L": 8, "M": 13, "N": 13})
 
-# ---- summary stat rows (задачи со сроком в выбранном месяце) ----
-STAT_ROW1 = TASK_LAST + 2
-prio_labels = ["СРОЧНЫЕ", "ВЫСОКИЙ ПРИОРИТЕТ", "СРЕДНИЙ ПРИОРИТЕТ", "НИЗКИЙ ПРИОРИТЕТ"]
-prio_colors_stat = ["F2B8C2", PURPLE, BLUE, SAGE]
-for i, (lbl, color) in enumerate(zip(prio_labels, prio_colors_stat)):
-    r = STAT_ROW1 + i
-    lc = tsk.cell(row=r, column=2, value=lbl)
+style_title(tsk, "A1:N1", "📋  ПЛАНИРОВЩИК ЗАДАЧ", BLUE)
+tsk.row_dimensions[1].height = 28
+
+LST = "'Список задач'"
+LC_RANGE = f"{LST}!$C${LIST_FIRST}:$C${LIST_LAST}"   # Задача
+LD_RANGE = f"{LST}!$D${LIST_FIRST}:$D${LIST_LAST}"   # Срок
+LE_RANGE = f"{LST}!$E${LIST_FIRST}:$E${LIST_LAST}"   # Приоритет
+LF_RANGE = f"{LST}!$F${LIST_FIRST}:$F${LIST_LAST}"   # Категория
+LG_RANGE = f"{LST}!$G${LIST_FIRST}:$G${LIST_LAST}"   # ✅
+LH_RANGE = f"{LST}!$H${LIST_FIRST}:$H${LIST_LAST}"   # Дни
+LI_RANGE = f"{LST}!$I${LIST_FIRST}:$I${LIST_LAST}"   # Ранг
+
+# ---- главный переключатель месяца/года ----
+tsk["B3"] = "Месяц:"
+tsk["B3"].font = FONT_LBL
+tsk["C3"] = "Июль"
+tsk["C3"].font = FONT_H2
+tsk["C3"].fill = fill(YELLOW_LIGHT)
+tsk["C3"].alignment = Alignment(horizontal="center")
+tsk["C3"].border = BORDER_ALL
+add_list_validation(tsk, "C3", RANGE_MONTHS)
+
+tsk["D3"] = "Год:"
+tsk["D3"].font = FONT_LBL
+tsk["F3"] = 2026
+tsk["F3"].font = FONT_H2
+tsk["F3"].fill = fill(YELLOW_LIGHT)
+tsk["F3"].alignment = Alignment(horizontal="center")
+tsk["F3"].border = BORDER_ALL
+add_list_validation(tsk, "F3", RANGE_YEARS)
+
+TASK_MONTH_NUM = f"MATCH($C$3,{RANGE_MONTHS},0)"
+MONTH_COND = f'(YEAR({LD_RANGE}+0)=$F$3)*(MONTH({LD_RANGE}+0)={TASK_MONTH_NUM})'
+
+# ---- «СЕГОДНЯ» — отдельный блок, не зависит от переключателя месяца ----
+box_header(tsk, "J3:N3", "📅  СЕГОДНЯ (не зависит от фильтра месяца)", YELLOW)
+tsk.merge_cells("J4:K4")
+tsk["J4"] = "Дедлайн сегодня"
+tsk["J4"].font = FONT_LBL
+tsk["J4"].fill = fill(YELLOW_LIGHT)
+tsk["J4"].alignment = Alignment(horizontal="center")
+tsk.merge_cells("L4:N4")
+tsk["L4"] = "Просроченные задачи"
+tsk["L4"].font = FONT_LBL
+tsk["L4"].fill = fill(YELLOW_LIGHT)
+tsk["L4"].alignment = Alignment(horizontal="center")
+
+tsk.merge_cells("J5:K7")
+tsk["J5"] = f"=COUNTIF({LD_RANGE},TODAY())"
+tsk["J5"].font = FONT_BIG
+tsk["J5"].alignment = Alignment(horizontal="center", vertical="center")
+
+tsk.merge_cells("L5:N7")
+tsk["L5"] = f'=COUNTIFS({LD_RANGE},"<"&TODAY(),{LG_RANGE},FALSE)'
+tsk["L5"].font = FONT_BIG
+tsk["L5"].alignment = Alignment(horizontal="center", vertical="center")
+
+for rng in ("J4:K4", "L4:N4", "J5:K7", "L5:N7"):
+    for row in tsk[rng]:
+        for c in row:
+            c.border = BORDER_ALL
+tsk.conditional_formatting.add(
+    "L5", CellIsRule(operator="greaterThan", formula=["0"], fill=fill("F2B8C2"), font=Font(bold=True, color="7A2530"))
+)
+
+# ---- KPI (за выбранный месяц), колоночно совпадает с блоками ниже ----
+box_header(tsk, "B5:D5", "ВСЕГО ЗАДАЧ (месяц)", SAGE)
+box_header(tsk, "F5:H5", "ВЫПОЛНЕНО / ПРОГРЕСС (месяц)", PINK)
+
+tsk.merge_cells("B6:D8")
+tsk["B6"] = f"=SUMPRODUCT({MONTH_COND})"
+tsk["B6"].font = FONT_BIG
+tsk["B6"].alignment = Alignment(horizontal="center", vertical="center")
+
+tsk.merge_cells("F6:H8")
+DONE_MONTH = f'SUMPRODUCT(({LG_RANGE}=TRUE)*{MONTH_COND})'
+TOTAL_MONTH = f'SUMPRODUCT({MONTH_COND})'
+tsk["F6"] = f'=({DONE_MONTH})&"/"&({TOTAL_MONTH})&"  ("&TEXT(IFERROR({DONE_MONTH}/{TOTAL_MONTH},0),"0%")&")"'
+tsk["F6"].font = FONT_H2
+tsk["F6"].alignment = Alignment(horizontal="center", vertical="center")
+
+for rng in ("B6:D8", "F6:H8"):
+    for row in tsk[rng]:
+        for c in row:
+            c.border = BORDER_ALL
+
+# ---- три блока в ряд: по приоритету | по категориям | список задач за месяц ----
+BLOCK_HDR_ROW = 10
+box_header(tsk, f"B{BLOCK_HDR_ROW}:D{BLOCK_HDR_ROW}", "ПО ПРИОРИТЕТУ", PURPLE)
+box_header(tsk, f"F{BLOCK_HDR_ROW}:H{BLOCK_HDR_ROW}", "ПО КАТЕГОРИЯМ", BLUE)
+box_header(tsk, f"J{BLOCK_HDR_ROW}:N{BLOCK_HDR_ROW}", "ЗАДАЧИ ЗА МЕСЯЦ (по приоритету)", SAGE)
+
+PRIO_FIRST = BLOCK_HDR_ROW + 1
+for i, prio in enumerate(["Срочно", "Высокий", "Средний", "Низкий"]):
+    r = PRIO_FIRST + i
+    color = PRIORITY_COLORS[prio]
+    tsk.merge_cells(f"B{r}:C{r}")
+    lc = tsk[f"B{r}"]
+    lc.value = prio
     lc.font = FONT_LBL
     lc.fill = fill(color)
-    lc.border = BORDER_ALL
-    prio_word = ["Срочно", "Высокий", "Средний", "Низкий"][i]
-    vc = tsk.cell(row=r, column=3, value=task_month_formula(f'($E${TASK_FIRST}:$E${TASK_LAST}="{prio_word}")'))
+    lc.alignment = Alignment(horizontal="center")
+    vc = tsk[f"D{r}"]
+    vc.value = f'=SUMPRODUCT(({LE_RANGE}="{prio}")*{MONTH_COND})'
     vc.font = FONT_H2
     vc.fill = fill(color)
     vc.alignment = Alignment(horizontal="center")
-    vc.border = BORDER_ALL
+    for cc in (lc, vc):
+        cc.border = BORDER_ALL
+PRIO_LAST = PRIO_FIRST + 3
 
-cat_labels = ["ВСЕГО ЗАДАЧ", "ЛИЧНЫЕ", "РАБОТА", "ДРУГИЕ"]
-for i, lbl in enumerate(cat_labels):
-    r = STAT_ROW1 + i
-    tsk.merge_cells(f"E{r}:F{r}")
-    lc = tsk.cell(row=r, column=5, value=lbl)
+CAT_FIRST = BLOCK_HDR_ROW + 1
+cat_rows = [("Всего", None), ("Личное", "Личное"), ("Работа", "Работа"), ("Другое", "Другое")]
+for i, (lbl, word) in enumerate(cat_rows):
+    r = CAT_FIRST + i
+    tsk.merge_cells(f"F{r}:G{r}")
+    lc = tsk[f"F{r}"]
+    lc.value = lbl
     lc.font = FONT_LBL
     lc.fill = fill(BLUE_LIGHT)
     lc.alignment = Alignment(horizontal="center")
-    vc = tsk.cell(row=r, column=7)
-    if i == 0:
-        vc.value = task_month_formula()
-    else:
-        word = {1: "Личное", 2: "Работа", 3: "Другое"}[i]
-        vc.value = task_month_formula(f'($G${TASK_FIRST}:$G${TASK_LAST}="{word}")')
+    vc = tsk[f"H{r}"]
+    vc.value = f"=SUMPRODUCT({MONTH_COND})" if word is None else f'=SUMPRODUCT(({LF_RANGE}="{word}")*{MONTH_COND})'
     vc.font = FONT_H2
     vc.fill = fill(BLUE_LIGHT)
     vc.alignment = Alignment(horizontal="center")
     for cc in (lc, vc):
         cc.border = BORDER_ALL
+CAT_LAST = CAT_FIRST + 3
 
-# filter control
-FILTER_ROW = STAT_ROW1 + 5
-tsk.cell(row=FILTER_ROW, column=2, value="Выделение задач:").font = FONT_LBL
-filt_cell = tsk.cell(row=FILTER_ROW, column=3, value="(Все)")
-filt_cell.fill = fill(YELLOW_LIGHT)
-filt_cell.border = BORDER_ALL
-filt_cell.alignment = Alignment(horizontal="center")
-dv_filter = DataValidation(type="list", formula1='"(Все),Работа,Личное,Другое"', allow_blank=True)
-tsk.add_data_validation(dv_filter)
-dv_filter.add(f"C{FILTER_ROW}")
-tsk.conditional_formatting.add(
-    TASK_RANGE_ALL,
-    FormulaRule(formula=[f'AND($C${FILTER_ROW}<>"(Все)",$G{TASK_FIRST}=$C${FILTER_ROW})'], fill=fill(YELLOW_LIGHT))
+# ---- единый отсортированный список задач за месяц (без обрезки до 4 строк) ----
+LIST_SUB_ROW = BLOCK_HDR_ROW + 1
+for col, lbl in zip("JKLMN", ["Задача", "Срок", "Дни", "Приоритет", "Категория"]):
+    c = tsk[f"{col}{LIST_SUB_ROW}"]
+    c.value = lbl
+    c.font = FONT_LBL
+    c.fill = fill(SAGE_LIGHT)
+    c.alignment = Alignment(horizontal="center")
+    c.border = BORDER_ALL
+
+MONTH_LIST_FIRST = LIST_SUB_ROW + 1
+MONTH_LIST_LAST = MONTH_LIST_FIRST + (LIST_LAST - LIST_FIRST)  # generous cap; SORT/FILTER only spills as far as needed
+tsk[f"J{MONTH_LIST_FIRST}"] = (
+    f'=IFERROR(SORT(FILTER({{{LC_RANGE},{LD_RANGE},{LH_RANGE},{LE_RANGE},{LF_RANGE}}},{MONTH_COND}),'
+    f'FILTER({LI_RANGE},{MONTH_COND}),TRUE),"Нет задач в этом месяце")'
 )
+tsk[f"J{MONTH_LIST_FIRST}"].font = FONT_BODY
+for r in range(MONTH_LIST_FIRST, MONTH_LIST_LAST + 1):
+    tsk[f"K{r}"].number_format = "dd.mm.yyyy"
+    for col in "JKLMN":
+        tsk[f"{col}{r}"].border = Border(bottom=THIN)
 
-# stat tiles: done/progress (за выбранный месяц) + deadline-today/overdue (всегда "сегодня")
-TILE_ROW = STAT_ROW1
-DONE_MONTH_EXPR = task_month_bare(f'($F${TASK_FIRST}:$F${TASK_LAST}=TRUE)')
-TOTAL_MONTH_EXPR = task_month_bare()
-tsk.cell(row=TILE_ROW, column=12, value="ЗАДАЧ ВЫПОЛНЕНО (месяц)").font = FONT_LBL
-tile_done = tsk.cell(row=TILE_ROW, column=13, value=f'={DONE_MONTH_EXPR}&"/"&{TOTAL_MONTH_EXPR}')
-tsk.cell(row=TILE_ROW + 1, column=12, value="ПРОГРЕСС (месяц)").font = FONT_LBL
-tile_pct = tsk.cell(row=TILE_ROW + 1, column=13, value=f'=IFERROR({DONE_MONTH_EXPR}/{TOTAL_MONTH_EXPR},0)')
-tile_pct.number_format = "0%"
-tsk.cell(row=TILE_ROW + 2, column=12, value="ДЕДЛАЙН СЕГОДНЯ").font = FONT_LBL
-tsk.cell(row=TILE_ROW + 2, column=13, value=f'=COUNTIF($C${TASK_FIRST}:$C${TASK_LAST},TODAY())')
-tsk.cell(row=TILE_ROW + 3, column=12, value="ПРОСРОЧЕННЫЕ ЗАДАЧИ").font = FONT_LBL
-tile_over = tsk.cell(row=TILE_ROW + 3, column=13,
-                      value=f'=COUNTIFS($C${TASK_FIRST}:$C${TASK_LAST},"<"&TODAY(),$F${TASK_FIRST}:$F${TASK_LAST},FALSE)')
-for i in range(4):
-    lbl_c = tsk.cell(row=TILE_ROW + i, column=12)
-    val_c = tsk.cell(row=TILE_ROW + i, column=13)
-    lbl_c.fill = fill(CREAM)
-    val_c.fill = fill(CREAM)
-    val_c.font = FONT_H2
-    val_c.alignment = Alignment(horizontal="center")
-    lbl_c.border = BORDER_ALL
-    val_c.border = BORDER_ALL
-tsk.conditional_formatting.add(
-    f"M{TILE_ROW+3}",
-    CellIsRule(operator="greaterThan", formula=["0"], fill=fill("F2B8C2"), font=Font(bold=True, color="7A2530"))
-)
-
-# priority helper table (for pie chart) — за выбранный месяц
-PH_ROW = STAT_ROW1
-for i, (prio, color) in enumerate(PRIORITY_COLORS.items()):
-    r = PH_ROW + i
-    tsk.cell(row=r, column=9, value=prio).font = FONT_BODY
-    tsk.cell(row=r, column=10,
-             value=task_month_formula(f'($E${TASK_FIRST}:$E${TASK_LAST}="{prio}")')).font = FONT_BODY
-
-# category helper table (for bar chart) — за выбранный месяц
-CH_ROW = STAT_ROW1
-for i, word in enumerate(["Работа", "Личное", "Другое"]):
-    r = CH_ROW + i
-    tsk.cell(row=r, column=14, value=word).font = FONT_BODY
-    tsk.cell(row=r, column=15,
-             value=task_month_formula(f'($G${TASK_FIRST}:$G${TASK_LAST}="{word}")')).font = FONT_BODY
-
+# ---- диаграммы прямо под своим блоком (та же колоночная зона) ----
+CHART_ROW = max(PRIO_LAST, CAT_LAST) + 2
 pie = PieChart()
-pie.title = "Задачи по приоритету"
-data = Reference(tsk, min_col=10, min_row=PH_ROW, max_row=PH_ROW + 3)
-cats = Reference(tsk, min_col=9, min_row=PH_ROW, max_row=PH_ROW + 3)
-pie.add_data(data, titles_from_data=False)
-pie.set_categories(cats)
+pie.title = "Задачи по приоритету (месяц)"
+pie.add_data(Reference(tsk, min_col=4, min_row=PRIO_FIRST, max_row=PRIO_LAST))
+pie.set_categories(Reference(tsk, min_col=2, min_row=PRIO_FIRST, max_row=PRIO_LAST))
 pie.height, pie.width = 7, 9
 pie.dataLabels = DataLabelList()
 pie.dataLabels.showPercent = True
-# charts anchored in a dedicated column, clear of every table on this sheet
-CHART_COL = "R"
-tsk.add_chart(pie, f"{CHART_COL}3")
+tsk.add_chart(pie, f"B{CHART_ROW}")
 
 bar = BarChart()
 bar.type = "col"
-bar.title = "Задачи по категориям"
-bdata = Reference(tsk, min_col=15, min_row=CH_ROW, max_row=CH_ROW + 2)
-bcats = Reference(tsk, min_col=14, min_row=CH_ROW, max_row=CH_ROW + 2)
-bar.add_data(bdata, titles_from_data=False)
-bar.set_categories(bcats)
+bar.title = "Задачи по категориям (месяц)"
+bar.add_data(Reference(tsk, min_col=8, min_row=CAT_FIRST + 1, max_row=CAT_LAST))
+bar.set_categories(Reference(tsk, min_col=6, min_row=CAT_FIRST + 1, max_row=CAT_LAST))
 bar.height, bar.width = 7, 9
 bar.legend = None
-tsk.add_chart(bar, f"{CHART_COL}20")
-
-# ---- FILTER tables by priority (2x2 grid) ----
-FT_ROW1 = FILTER_ROW + 17
-filter_blocks = [
-    ("СРОЧНЫЕ", "Срочно", "F2B8C2", 2),
-    ("ВЫСОКИЙ ПРИОРИТЕТ", "Высокий", PURPLE, 7),
-]
-filter_blocks2 = [
-    ("СРЕДНИЙ ПРИОРИТЕТ", "Средний", BLUE, 2),
-    ("НИЗКИЙ ПРИОРИТЕТ", "Низкий", SAGE, 7),
-]
-
-def build_filter_block(ws, title, prio_word, color, start_col, header_row):
-    c0 = get_column_letter(start_col)
-    c3 = get_column_letter(start_col + 3)
-    ws.merge_cells(f"{c0}{header_row}:{c3}{header_row}")
-    hc = ws[f"{c0}{header_row}"]
-    hc.value = title
-    hc.font = FONT_LBL
-    hc.fill = fill(color)
-    hc.alignment = Alignment(horizontal="center")
-    for row in ws[f"{c0}{header_row}:{c3}{header_row}"]:
-        for c in row:
-            c.fill = fill(color)
-            c.border = BORDER_ALL
-    sub_row = header_row + 1
-    for i, lbl in enumerate(["Задача", "Срок", "Дни", "Тип"]):
-        cc = ws.cell(row=sub_row, column=start_col + i, value=lbl)
-        cc.font = FONT_LBL
-        cc.fill = fill(BLUE_LIGHT if color != BLUE else BLUE_DK)
-        cc.alignment = Alignment(horizontal="center")
-        cc.border = BORDER_ALL
-    data_row = sub_row + 1
-    crit_rng = f"$E${TASK_FIRST}:$E${TASK_LAST}"
-    date_cond = (f'(YEAR($C${TASK_FIRST}:$C${TASK_LAST}+0)={TASK_YEAR_CELL})'
-                 f'*(MONTH($C${TASK_FIRST}:$C${TASK_LAST}+0)={TASK_MONTH_NUM})')
-    match_cond = f'({crit_rng}="{prio_word}")*{date_cond}'
-    formulas = [
-        f'=IFERROR(FILTER($B${TASK_FIRST}:$B${TASK_LAST},{match_cond}),"")',
-        f'=IFERROR(FILTER($C${TASK_FIRST}:$C${TASK_LAST},{match_cond}),"")',
-        f'=IFERROR(FILTER($D${TASK_FIRST}:$D${TASK_LAST},{match_cond}),"")',
-        f'=IFERROR(FILTER($G${TASK_FIRST}:$G${TASK_LAST},{match_cond}),"")',
-    ]
-    for i, f_ in enumerate(formulas):
-        cell = ws.cell(row=data_row, column=start_col + i, value=f_)
-        cell.font = FONT_BODY
-    for r in range(data_row, data_row + 4):
-        for col in range(start_col, start_col + 4):
-            ws.cell(row=r, column=col).border = BORDER_ALL
-    return data_row + 4
-
-for title, prio_word, color, scol in filter_blocks:
-    next_row = build_filter_block(tsk, title, prio_word, color, scol, FT_ROW1)
-
-FT_ROW2 = FT_ROW1 + 8
-for title, prio_word, color, scol in filter_blocks2:
-    build_filter_block(tsk, title, prio_word, color, scol, FT_ROW2)
-
-tsk.freeze_panes = f"B{TASK_FIRST}"
+tsk.add_chart(bar, f"F{CHART_ROW}")
 
 # =====================================================================
 # SHEET: ЖУРНАЛ ОПЕРАЦИЙ (ввод данных)
@@ -1250,7 +1224,7 @@ cr.add_chart(line_cr, f"B{PROJ_CHART_ROW}")
 # =====================================================================
 # final touches
 # =====================================================================
-wb._sheets = [bud, jrn, cr, hab, tsk, ref]
+wb._sheets = [bud, jrn, cr, hab, tsk, lst, ref]
 wb.active = 0
 
 OUT_PATH = "Планировщик_Бюджет_Привычки.xlsx"
