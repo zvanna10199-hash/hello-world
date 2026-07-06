@@ -678,7 +678,7 @@ for title, prio_word, color, scol in filter_blocks2:
 tsk.freeze_panes = f"B{TASK_FIRST}"
 
 # =====================================================================
-# SHEET: БЮДЖЕТ (доходы и расходы)
+# SHEET: ЖУРНАЛ ОПЕРАЦИЙ (ввод данных)
 # =====================================================================
 jrn = wb.create_sheet("Журнал операций")
 jrn.sheet_properties.tabColor = SAGE_DK
@@ -689,26 +689,26 @@ set_col_widths(jrn, {"A": 3, "B": 18, "C": 16, "D": 12, "E": 20, "F": 12, "G": 2
 style_title(jrn, "A1:H1", "📒  ЖУРНАЛ ОПЕРАЦИЙ", SAGE)
 jrn.row_dimensions[1].height = 28
 
-# ---- month/year switcher ----
+# ---- месяц/год выбираются на вкладке «Бюджет» (там главный переключатель) ----
 jrn["B3"] = "Месяц:"
 jrn["B3"].font = FONT_LBL
-jrn["C3"] = "Январь"
+jrn["C3"] = "=Бюджет!$C$3"
 jrn["C3"].font = FONT_H2
-jrn["C3"].fill = fill(YELLOW_LIGHT)
+jrn["C3"].fill = fill(GRAY_LIGHT)
 jrn["C3"].alignment = Alignment(horizontal="center")
 jrn["C3"].border = BORDER_ALL
-add_list_validation(jrn, "C3", RANGE_MONTHS)
 
 jrn["E3"] = "Год:"
 jrn["E3"].font = FONT_LBL
-jrn["F3"] = 2026
+jrn["F3"] = "=Бюджет!$F$3"
 jrn["F3"].font = FONT_H2
-jrn["F3"].fill = fill(YELLOW_LIGHT)
+jrn["F3"].fill = fill(GRAY_LIGHT)
 jrn["F3"].alignment = Alignment(horizontal="center")
 jrn["F3"].border = BORDER_ALL
-add_list_validation(jrn, "F3", RANGE_YEARS)
+jrn["G3"] = "← изменить можно на вкладке «Бюджет»"
+jrn["G3"].font = FONT_NOTE
 
-MONTH_CELL, YEAR_CELL = "$C$3", "$F$3"
+MONTH_CELL, YEAR_CELL = "Бюджет!$C$3", "Бюджет!$F$3"
 MONTH_NUM = f"MATCH({MONTH_CELL},{RANGE_MONTHS},0)"
 
 OPS_FIRST, OPS_LAST = 25, 224
@@ -860,19 +860,32 @@ style_title(bud, "A1:L1", "💰  БЮДЖЕТ: ДОХОДЫ И РАСХОДЫ", 
 bud.row_dimensions[1].height = 28
 
 JRN = "'Журнал операций'"
-bud["B3"] = "Показан период:"
+
+# ---- главный переключатель месяца/года (на «Журнале» он лишь отражается) ----
+bud["B3"] = "Месяц:"
 bud["B3"].font = FONT_LBL
-bud.merge_cells("C3:D3")
-bud["C3"] = f'={JRN}!$C$3&" "&{JRN}!$F$3'
-bud["C3"].font = FONT_NOTE
-bud["C3"].alignment = Alignment(horizontal="left")
+bud["C3"] = "Январь"
+bud["C3"].font = FONT_H2
+bud["C3"].fill = fill(YELLOW_LIGHT)
+bud["C3"].alignment = Alignment(horizontal="center")
+bud["C3"].border = BORDER_ALL
+add_list_validation(bud, "C3", RANGE_MONTHS)
+
+bud["D3"] = "Год:"
+bud["D3"].font = FONT_LBL
+bud["F3"] = 2026
+bud["F3"].font = FONT_H2
+bud["F3"].fill = fill(YELLOW_LIGHT)
+bud["F3"].alignment = Alignment(horizontal="center")
+bud["F3"].border = BORDER_ALL
+add_list_validation(bud, "F3", RANGE_YEARS)
 
 JB_RANGE = f"{JRN}!$B$25:$B$224"   # Дата
 JC_RANGE = f"{JRN}!$C$25:$C$224"   # Счёт
 JD_RANGE = f"{JRN}!$D$25:$D$224"   # Тип
 JE_RANGE = f"{JRN}!$E$25:$E$224"   # Категория
 JF_RANGE = f"{JRN}!$F$25:$F$224"   # Сумма
-J_MONTH_CELL, J_YEAR_CELL = f"{JRN}!$C$3", f"{JRN}!$F$3"
+J_MONTH_CELL, J_YEAR_CELL = "$C$3", "$F$3"
 J_MONTH_NUM = f"MATCH({J_MONTH_CELL},{RANGE_MONTHS},0)"
 
 def bud_month_sum(txn, exclude_service=False):
