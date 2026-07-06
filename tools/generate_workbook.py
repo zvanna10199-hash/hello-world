@@ -712,7 +712,7 @@ add_list_validation(bud, "F3", RANGE_YEARS)
 MONTH_CELL, YEAR_CELL = "$C$3", "$F$3"
 MONTH_NUM = f"MATCH({MONTH_CELL},{RANGE_MONTHS},0)"
 
-OPS_FIRST, OPS_LAST = 27, 226
+OPS_FIRST, OPS_LAST = 43, 242
 B_RANGE = f"$B${OPS_FIRST}:$B${OPS_LAST}"   # Дата
 C_RANGE = f"$C${OPS_FIRST}:$C${OPS_LAST}"   # Счёт
 D_RANGE = f"$D${OPS_FIRST}:$D${OPS_LAST}"   # Тип
@@ -782,69 +782,8 @@ bud.conditional_formatting.add(
     CellIsRule(operator="lessThan", formula=["0"], fill=fill(PINK_LIGHT))
 )
 
-# ---- журнал операций (основная таблица для ввода) ----
-box_header(bud, "B25:H25", "✏️  ЖУРНАЛ ОПЕРАЦИЙ — вносите доходы и расходы сюда", SAGE)
-for col, lbl in zip("BCDEFGH", ["Дата", "Счёт", "Тип", "Категория", "Сумма", "Описание", "Остаток"]):
-    c = bud[f"{col}26"]
-    c.value = lbl
-    c.font = FONT_LBL
-    c.fill = fill(SAGE_LIGHT)
-    c.alignment = Alignment(horizontal="center")
-    c.border = BORDER_ALL
-
-example_ops = [
-    (datetime.date(2026, 1, 5), "Карта Сбербанк", "Доход", "Зарплата", 75000, ""),
-    (datetime.date(2026, 1, 6), "Карта Сбербанк", "Расход", "Аренда", 28000, ""),
-    (datetime.date(2026, 1, 8), "Наличные", "Расход", "Продукты", 7500, ""),
-    (datetime.date(2026, 1, 10), "Карта Сбербанк", "Расход", "Пополнение вклада", 15000, "перевод на вклад"),
-    (datetime.date(2026, 1, 10), "Вклад", "Доход", "Пополнение вклада", 15000, ""),
-    (datetime.date(2026, 1, 15), "Карта Тинькофф", "Доход", "Заказы", 20000, "у друга"),
-    (datetime.date(2026, 1, 18), "Карта Сбербанк", "Расход", "Кредит", 9000, ""),
-    (datetime.date(2026, 1, 20), "Наличные", "Доход", "Взял в долг", 10000, ""),
-    (datetime.date(2026, 1, 25), "Карта Сбербанк", "Расход", "Обучение", 10000, ""),
-    (datetime.date(2026, 2, 2), "Карта Сбербанк", "Доход", "Зарплата", 75000, ""),
-    (datetime.date(2026, 2, 3), "Карта Сбербанк", "Расход", "Аренда", 28000, ""),
-    (datetime.date(2026, 2, 5), "Наличные", "Расход", "Продукты", 8000, ""),
-    (datetime.date(2026, 2, 8), "Карта Сбербанк", "Расход", "Пополнение вклада", 20000, ""),
-    (datetime.date(2026, 2, 8), "Вклад", "Доход", "Пополнение вклада", 20000, ""),
-    (datetime.date(2026, 2, 12), "Карта Тинькофф", "Доход", "Заказы", 30000, ""),
-    (datetime.date(2026, 2, 15), "Наличные", "Расход", "Вернул долг", 5000, ""),
-    (datetime.date(2026, 2, 18), "Карта Сбербанк", "Расход", "Ипотека", 18000, ""),
-]
-
-for i, r in enumerate(range(OPS_FIRST, OPS_LAST + 1)):
-    if i < len(example_ops):
-        date_v, acc_v, txn_v, cat_v, sum_v, desc_v = example_ops[i]
-        bud[f"B{r}"] = date_v
-        bud[f"B{r}"].number_format = "dd.mm.yyyy"
-        bud[f"C{r}"] = acc_v
-        bud[f"D{r}"] = txn_v
-        bud[f"E{r}"] = cat_v
-        bud[f"F{r}"] = sum_v
-        bud[f"G{r}"] = desc_v
-    bud[f"H{r}"] = (f'=IF(C{r}="","",SUMPRODUCT(($C${OPS_FIRST}:C{r}=C{r})'
-                     f'*(2*($D${OPS_FIRST}:D{r}="Доход")-1)*$F${OPS_FIRST}:F{r}))')
-    for col in "BCDEFGH":
-        bud[f"{col}{r}"].font = FONT_BODY
-        bud[f"{col}{r}"].border = BORDER_ALL
-    bud[f"F{r}"].number_format = '#,##0" ₽"'
-    bud[f"H{r}"].number_format = '#,##0" ₽";[RED]-#,##0" ₽"'
-
-add_list_validation(bud, f"C{OPS_FIRST}:C{OPS_LAST}", RANGE_ACCOUNTS)
-add_list_validation_literal(bud, f"D{OPS_FIRST}:D{OPS_LAST}", "Доход,Расход")
-add_list_validation(bud, f"E{OPS_FIRST}:E{OPS_LAST}", RANGE_ALLCATS)
-
-txn_colors = {"Доход": SAGE, "Расход": PINK}
-for txn, color in txn_colors.items():
-    bud.conditional_formatting.add(
-        f"D{OPS_FIRST}:D{OPS_LAST}",
-        FormulaRule(formula=[f'D{OPS_FIRST}="{txn}"'], fill=fill(color))
-    )
-
-bud.freeze_panes = f"B{OPS_FIRST + 1}"
-
-# ---- категории за месяц ----
-CAT_HDR_ROW = OPS_LAST + 3
+# ---- категории за месяц + динамика за год (сразу видно, без прокрутки журнала) ----
+CAT_HDR_ROW = 25
 box_header(bud, f"D{CAT_HDR_ROW}:F{CAT_HDR_ROW}", "ДОХОДЫ ПО КАТЕГОРИЯМ (месяц)", SAGE)
 box_header(bud, f"H{CAT_HDR_ROW}:J{CAT_HDR_ROW}", "РАСХОДЫ ПО КАТЕГОРИЯМ (месяц)", PINK)
 SUB_ROW = CAT_HDR_ROW + 1
@@ -937,6 +876,69 @@ line.add_data(Reference(bud, min_col=14, min_row=DYN_SUB_ROW, max_row=DYN_DATA_L
 line.set_categories(Reference(bud, min_col=12, min_row=DYN_DATA_ROW, max_row=DYN_DATA_LAST))
 line.height, line.width = 8, 14
 bud.add_chart(line, f"{CHART_ANCHOR_COL}45")
+
+# ---- журнал операций (основная таблица для ввода) ----
+JOURNAL_HDR_ROW = max(EXPENSE_CAT_LAST, DYN_DATA_LAST) + 3
+box_header(bud, f"B{JOURNAL_HDR_ROW}:H{JOURNAL_HDR_ROW}", "✏️  ЖУРНАЛ ОПЕРАЦИЙ — вносите доходы и расходы сюда", SAGE)
+JOURNAL_SUB_ROW = JOURNAL_HDR_ROW + 1
+for col, lbl in zip("BCDEFGH", ["Дата", "Счёт", "Тип", "Категория", "Сумма", "Описание", "Остаток"]):
+    c = bud[f"{col}{JOURNAL_SUB_ROW}"]
+    c.value = lbl
+    c.font = FONT_LBL
+    c.fill = fill(SAGE_LIGHT)
+    c.alignment = Alignment(horizontal="center")
+    c.border = BORDER_ALL
+
+example_ops = [
+    (datetime.date(2026, 1, 5), "Карта Сбербанк", "Доход", "Зарплата", 75000, ""),
+    (datetime.date(2026, 1, 6), "Карта Сбербанк", "Расход", "Аренда", 28000, ""),
+    (datetime.date(2026, 1, 8), "Наличные", "Расход", "Продукты", 7500, ""),
+    (datetime.date(2026, 1, 10), "Карта Сбербанк", "Расход", "Пополнение вклада", 15000, "перевод на вклад"),
+    (datetime.date(2026, 1, 10), "Вклад", "Доход", "Пополнение вклада", 15000, ""),
+    (datetime.date(2026, 1, 15), "Карта Тинькофф", "Доход", "Заказы", 20000, "у друга"),
+    (datetime.date(2026, 1, 18), "Карта Сбербанк", "Расход", "Кредит", 9000, ""),
+    (datetime.date(2026, 1, 20), "Наличные", "Доход", "Взял в долг", 10000, ""),
+    (datetime.date(2026, 1, 25), "Карта Сбербанк", "Расход", "Обучение", 10000, ""),
+    (datetime.date(2026, 2, 2), "Карта Сбербанк", "Доход", "Зарплата", 75000, ""),
+    (datetime.date(2026, 2, 3), "Карта Сбербанк", "Расход", "Аренда", 28000, ""),
+    (datetime.date(2026, 2, 5), "Наличные", "Расход", "Продукты", 8000, ""),
+    (datetime.date(2026, 2, 8), "Карта Сбербанк", "Расход", "Пополнение вклада", 20000, ""),
+    (datetime.date(2026, 2, 8), "Вклад", "Доход", "Пополнение вклада", 20000, ""),
+    (datetime.date(2026, 2, 12), "Карта Тинькофф", "Доход", "Заказы", 30000, ""),
+    (datetime.date(2026, 2, 15), "Наличные", "Расход", "Вернул долг", 5000, ""),
+    (datetime.date(2026, 2, 18), "Карта Сбербанк", "Расход", "Ипотека", 18000, ""),
+]
+
+for i, r in enumerate(range(OPS_FIRST, OPS_LAST + 1)):
+    if i < len(example_ops):
+        date_v, acc_v, txn_v, cat_v, sum_v, desc_v = example_ops[i]
+        bud[f"B{r}"] = date_v
+        bud[f"B{r}"].number_format = "dd.mm.yyyy"
+        bud[f"C{r}"] = acc_v
+        bud[f"D{r}"] = txn_v
+        bud[f"E{r}"] = cat_v
+        bud[f"F{r}"] = sum_v
+        bud[f"G{r}"] = desc_v
+    bud[f"H{r}"] = (f'=IF(C{r}="","",SUMPRODUCT(($C${OPS_FIRST}:C{r}=C{r})'
+                     f'*(2*($D${OPS_FIRST}:D{r}="Доход")-1)*$F${OPS_FIRST}:F{r}))')
+    for col in "BCDEFGH":
+        bud[f"{col}{r}"].font = FONT_BODY
+        bud[f"{col}{r}"].border = BORDER_ALL
+    bud[f"F{r}"].number_format = '#,##0" ₽"'
+    bud[f"H{r}"].number_format = '#,##0" ₽";[RED]-#,##0" ₽"'
+
+add_list_validation(bud, f"C{OPS_FIRST}:C{OPS_LAST}", RANGE_ACCOUNTS)
+add_list_validation_literal(bud, f"D{OPS_FIRST}:D{OPS_LAST}", "Доход,Расход")
+add_list_validation(bud, f"E{OPS_FIRST}:E{OPS_LAST}", RANGE_ALLCATS)
+
+txn_colors = {"Доход": SAGE, "Расход": PINK}
+for txn, color in txn_colors.items():
+    bud.conditional_formatting.add(
+        f"D{OPS_FIRST}:D{OPS_LAST}",
+        FormulaRule(formula=[f'D{OPS_FIRST}="{txn}"'], fill=fill(color))
+    )
+
+bud.freeze_panes = f"B{OPS_FIRST + 1}"
 
 # =====================================================================
 # final touches
